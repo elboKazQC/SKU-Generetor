@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""
+Générateur de SKU industriel avec logique de route et routing
+Développé pour Noovelia par GitHub Copilot
+"""
+
+import pandas as pd
+import sqlite3
+import hashlib
+import re
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from datetime import datetime
+import logging
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+@dataclass
+class Component:
+    """Classe représentant un composant avec ses attributs"""
+    name: str
+    description: str
+    domain: str  # ELEC ou MECA
+    component_type: str
+    route: str
+    routing: str
+    manufacturer: Optional[str] = None
+    manufacturer_part: Optional[str] = None
+    quantity: Optional[float] = None
+    designator: Optional[str] = None
+
+class SKUGenerator:
+    """Générateur de SKU avec logique industrielle"""
+
+    def __init__(self, db_path: str = "sku_database.db"):
+        self.db_path = db_path
+        self.init_database()
+
+        # Mapping des routes et routings basé sur vos données
+        self.route_mapping = {
+            # Routes électriques
+            "Assemblage": "ASS",
+            "Connecteurs": "CONN",
+            "Borniers": "TERM",
+            "Communication": "COMM",
+            "Contrôleurs": "CTRL",
+            "Alimentation": "POWER",
+            "Moteurs": "MOTOR",
+
+            # Routes mécaniques
+            "ASSEMBLAGE MÉCANIQUE": "ASS",
+            "ASSEMBLAGE SOUDÉ": "WELD",
+            "PIÈCES USINÉES": "MACH",
+            "PIÈCES PLIÉES": "BEND",
+            "PIÈCES DÉCOUPÉES LASER": "LASER",
+            "BOULONNERIE": "BOLT",
+            "PLASTIQUE": "PLAST"
+        }
+
+        self.routing_mapping = {
+            # Routings électriques
+            "Assemblage": "ASM",
+            "Cosses, oeillets, fourchettes": "TERM",
+            "Boitiers": "ENCL",
+            "Fusibles": "FUSE",
+            "Broches": "PIN",
+            "Fil": "WIRE",
+
+            # Routings mécaniques
+            "BOULONNERIE": "BOLT",
+            "PIÈCES PLIÉES": "BEND",
+            "ASSEMBLAGE MÉCANIQUE": "MECH",
+            "COMPOSANTES MECANIQUES": "COMP",
+            "PIÈCES DÉCOUPÉES LASER": "CUT",
+            "PIÈCES USINÉES": "MILL",
+            "PLASTIQUE (UHMW, LEXAN, ...)": "POLY"
+        }
+
+    def init_database(self):
+        """Initialise la base de données SQLite"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS components (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sku TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                domain TEXT NOT NULL,
+                component_type TEXT,
+                route TEXT,
+                routing TEXT,
+                manufacturer TEXT,
+                manufacturer_part TEXT,
+                component_hash TEXT UNIQUE,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sku_counters (
+                domain TEXT,
+                route TEXT,
+                routing TEXT,
+                type_code TEXT,
+                counter INTEGER DEFAULT 0,
+                PRIMARY KEY (domain, route, routing, type_code)
+            )
+        ''')
+
+        conn.commit()
+        conn.close()
+        logger.info("Base de données initialisée")
+
+    def normalize_text(self, text: str, max_length: int = 4) -> str:
+        """Normalise le texte pour le SKU"""
+        if not text:
+            return "UNK"
+
+        # Nettoyer et normaliser
+        text = re.sub(r'[^\w\s-]', '', str(text).upper())
+        text = re.sub(r'\s+', '', text)
+
+        # Extraire les caractères significatifs
+        if len(text) <= max_length:
+            return text.ljust(max_length, 'X')
+
+        # Extraire consonnes puis voyelles si nécessaire
+        consonants = re.sub(r'[AEIOU]', '', text)
+        if len(consonants) >= max_length:
+            return consonants[:max_length]
+
+        return text[:max_length]
+
+    def get_route_code(self, component_type: str, domain: str) -> str:
+        """Détermine le code de route basé sur le type de composant"""
+        for key, code in self.route_mapping.items():
+            if key.upper() in component_type.upper():
+                return code
+
+        # Route par défaut selon le domaine
+        return "ELEC" if domain == "ELEC" else "MECA"
+
+    def get_routing_code(self, component_type: str) -> str:
+        """Détermine le code de routing basé sur le type de composant"""
+        for key, code in self.routing_mapping.items():
+            if key.upper() in component_type.upper():
+                return code
+
+        return "STD"  # Routing standard par défaut
+
+    def create_component_hash(self, component: Component) -> str:
+        """Crée un hash unique pour identifier les composants similaires"""
+        hash_string = f"{component.name}_{component.description}_{component.component_type}_{component.manufacturer}_{component.manufacturer_part}"
+        return hashlib.md5(hash_string.encode()).hexdigest()[:8]
+
+    def get_existing_sku(self, component: Component) -> Optional[str]:
+        """Vérifie si un composant similaire existe déjà"""
+        component_hash = self.create_component_hash(component)
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT sku FROM components WHERE component_hash = ?
+        ''', (component_hash,))
+
+        result = cursor.fetchone()
+        conn.close()
+
+        return result[0] if result else None
+
+    def get_next_sequence(self, domain: str, route: str, routing: str, type_code: str) -> int:
+        """Obtient le prochain numéro de séquence"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT counter FROM sku_counters
+            WHERE domain = ? AND route = ? AND routing = ? AND type_code = ?
+        ''', (domain, route, routing, type_code))
+
+        result = cursor.fetchone()
+
+        if result:
+            new_counter = result[0] + 1
+            cursor.execute('''
+                UPDATE sku_counters
+                SET counter = ?
+                WHERE domain = ? AND route = ? AND routing = ? AND type_code = ?
+            ''', (new_counter, domain, route, routing, type_code))
+        else:
+            new_counter = 1
+            cursor.execute('''
+                INSERT INTO sku_counters (domain, route, routing, type_code, counter)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (domain, route, routing, type_code, new_counter))
+
+        conn.commit()
+        conn.close()
+
+        return new_counter
+
+    def generate_sku(self, component: Component) -> str:
+        """Génère un SKU pour un composant"""
+
+        # Vérifier si le composant existe déjà
+        existing_sku = self.get_existing_sku(component)
+        if existing_sku:
+            logger.info(f"Composant existant trouvé: {existing_sku}")
+            return existing_sku
+
+        # Générer les codes
+        route_code = self.get_route_code(component.component_type, component.domain)
+        routing_code = self.get_routing_code(component.component_type)
+        type_code = self.normalize_text(component.component_type, 4)
+
+        # Obtenir le numéro de séquence
+        sequence = self.get_next_sequence(component.domain, route_code, routing_code, type_code)
+
+        # Construire le SKU
+        sku = f"{component.domain}-{route_code}-{routing_code}-{type_code}-{sequence:05d}"
+
+        # Sauvegarder dans la base de données
+        self.save_component(component, sku)
+
+        logger.info(f"Nouveau SKU généré: {sku}")
+        return sku
+
+    def save_component(self, component: Component, sku: str):
+        """Sauvegarde le composant dans la base de données"""
+        component_hash = self.create_component_hash(component)
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO components (
+                sku, name, description, domain, component_type,
+                route, routing, manufacturer, manufacturer_part, component_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            sku, component.name, component.description, component.domain,
+            component.component_type, component.route, component.routing,
+            component.manufacturer, component.manufacturer_part, component_hash
+        ))
+
+        conn.commit()
+        conn.close()
+
+if __name__ == "__main__":
+    # Test du générateur
+    generator = SKUGenerator()
+
+    # Test avec un composant électrique
+    comp_elec = Component(
+        name="D-ST 2,5",
+        description="Accessoires de borniers",
+        domain="ELEC",
+        component_type="Accessoires de borniers",
+        route="",
+        routing="",
+        manufacturer="Phoenix Contact"
+    )
+
+    sku = generator.generate_sku(comp_elec)
+    print(f"SKU généré: {sku}")
