@@ -70,24 +70,113 @@ class SKUGeneratorGUI:
         ttk.Button(button_frame, text="⚙️ Traiter et générer SKU",
                   command=self.process_bom).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="🔄 Actualiser stats",
-                  command=self.update_stats).pack(side=tk.LEFT)
+                  command=self.update_stats).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="🗑️ Effacer résultats",
+                  command=self.clear_results).pack(side=tk.LEFT)
 
         # Zone de résultats
         results_frame = ttk.LabelFrame(main_frame, text="Résultats")
         results_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.results_text = scrolledtext.ScrolledText(results_frame, height=15)
+        self.results_text = scrolledtext.ScrolledText(results_frame, height=15,
+                                                     font=("Consolas", 10),
+                                                     wrap=tk.WORD)
         self.results_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        # Configuration des couleurs pour améliorer la lisibilité
+        self.setup_text_formatting()
 
         # Barre de progression
         self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
         self.progress.pack(fill=tk.X, pady=(5, 0))
 
-    def log_result(self, message):
-        """Ajouter un message aux résultats"""
-        self.results_text.insert(tk.END, message + "\\n")
+    def setup_text_formatting(self):
+        """Configuration des styles de texte pour améliorer la lisibilité"""
+        # Couleurs et styles
+        self.results_text.tag_configure("header",
+                                       foreground="#2E8B57",
+                                       font=("Consolas", 11, "bold"))
+        self.results_text.tag_configure("success",
+                                       foreground="#228B22",
+                                       font=("Consolas", 10, "bold"))
+        self.results_text.tag_configure("error",
+                                       foreground="#DC143C",
+                                       font=("Consolas", 10, "bold"))
+        self.results_text.tag_configure("info",
+                                       foreground="#4169E1",
+                                       font=("Consolas", 10))
+        self.results_text.tag_configure("highlight",
+                                       foreground="#FF8C00",
+                                       font=("Consolas", 10, "bold"))
+        self.results_text.tag_configure("sku",
+                                       foreground="#8B008B",
+                                       font=("Consolas", 10, "bold"))
+        self.results_text.tag_configure("separator",
+                                       foreground="#696969",
+                                       font=("Consolas", 10))
+
+    def log_header(self, title):
+        """Ajouter un en-tête avec séparateur"""
+        separator = "=" * 60
+        self.results_text.insert(tk.END, f"\n{separator}\n", "separator")
+        self.results_text.insert(tk.END, f"{title}\n", "header")
+        self.results_text.insert(tk.END, f"{separator}\n", "separator")
         self.results_text.see(tk.END)
         self.root.update()
+
+    def log_section(self, title):
+        """Ajouter une section avec formatage"""
+        self.results_text.insert(tk.END, f"\n📋 {title}\n", "highlight")
+        self.results_text.insert(tk.END, "-" * 40 + "\n", "separator")
+        self.results_text.see(tk.END)
+        self.root.update()
+
+    def log_success(self, message):
+        """Ajouter un message de succès"""
+        self.results_text.insert(tk.END, f"✅ {message}\n", "success")
+        self.results_text.see(tk.END)
+        self.root.update()
+
+    def log_error(self, message):
+        """Ajouter un message d'erreur"""
+        self.results_text.insert(tk.END, f"❌ {message}\n", "error")
+        self.results_text.see(tk.END)
+        self.root.update()
+
+    def log_info(self, message):
+        """Ajouter un message d'information"""
+        self.results_text.insert(tk.END, f"ℹ️  {message}\n", "info")
+        self.results_text.see(tk.END)
+        self.root.update()
+
+    def log_sku_example(self, name, sku):
+        """Afficher un exemple de SKU avec formatage spécial"""
+        self.results_text.insert(tk.END, f"    • {name:<25} → ", "info")
+        self.results_text.insert(tk.END, f"{sku}\n", "sku")
+        self.results_text.see(tk.END)
+        self.root.update()
+
+    def clear_results(self):
+        """Effacer la zone de résultats"""
+        self.results_text.delete(1.0, tk.END)
+
+    def check_file_access(self, file_path):
+        """Vérifier l'accès au fichier avant traitement"""
+        try:
+            # Tenter d'ouvrir le fichier en lecture
+            with open(file_path, 'rb') as f:
+                f.read(1024)  # Lire quelques octets pour tester
+            return True, None
+        except PermissionError:
+            return False, "Fichier verrouillé ou permissions insuffisantes"
+        except FileNotFoundError:
+            return False, "Fichier non trouvé"
+        except Exception as e:
+            return False, f"Erreur d'accès: {str(e)}"
+
+    def log_result(self, message):
+        """Ajouter un message aux résultats (méthode héritée, utilise log_info)"""
+        self.log_info(message)
 
     def update_stats(self):
         """Mettre à jour les statistiques"""
@@ -117,35 +206,69 @@ class SKUGeneratorGUI:
         def analyze_thread():
             try:
                 self.progress.start()
-                self.log_result(f"🔍 Analyse du fichier: {Path(file_path).name}")
+                self.clear_results()
+
+                # En-tête principal
+                self.log_header(f"🔍 ANALYSE BOM: {Path(file_path).name}")
+
+                # Vérification préalable du fichier
+                self.log_info(f"Fichier: {file_path}")
+                self.log_info("Vérification d'accès au fichier...")
+
+                can_access, error_msg = self.check_file_access(file_path)
+                if not can_access:
+                    self.log_error(f"Impossible d'accéder au fichier: {error_msg}")
+                    self.log_info("💡 Solutions possibles:")
+                    self.log_info("   1. Fermez le fichier s'il est ouvert dans Excel")
+                    self.log_info("   2. Attendez que OneDrive finisse la synchronisation")
+                    self.log_info("   3. Copiez le fichier dans un autre dossier")
+                    self.log_info("   4. Vérifiez les permissions du fichier")
+                    return
+
+                self.log_success("Accès au fichier confirmé!")
+                self.log_info("Analyse en cours...")
 
                 analysis = self.comparator.analyze_new_bom(file_path)
 
-                self.log_result("\\n📈 RÉSULTATS DE L'ANALYSE:")
-                self.log_result(f"  Composants NOUVEAUX: {analysis['nouveau']}")
-                self.log_result(f"  Composants EXISTANTS: {analysis['existant']}")
-                self.log_result(f"  Total analysé: {analysis['nouveau'] + analysis['existant']}")
+                # Résultats principaux
+                self.log_section("RÉSULTATS GLOBAUX")
+                self.log_info(f"📊 Composants NOUVEAUX: {analysis['nouveau']}")
+                self.log_info(f"📊 Composants EXISTANTS: {analysis['existant']}")
+                self.log_info(f"📊 Total analysé: {analysis['nouveau'] + analysis['existant']}")
 
+                # Détails par domaine
                 for domain, details in analysis['details'].items():
-                    if details:
-                        self.log_result(f"\\n🔧 {domain.upper()}:")
-                        self.log_result(f"  Nouveaux: {details['nouveau']}")
-                        self.log_result(f"  Existants: {details['existant']}")
+                    if details and (details['nouveau'] > 0 or details['existant'] > 0):
+                        self.log_section(f"DÉTAILS {domain.upper()}")
+                        self.log_info(f"🔧 Nouveaux: {details['nouveau']}")
+                        self.log_info(f"🔧 Existants: {details['existant']}")
 
                         if details['composants_existants']:
-                            self.log_result("  Exemples de composants existants:")
-                            for comp in details['composants_existants'][:3]:
-                                self.log_result(f"    - {comp['nom']} → {comp['sku_existant']}")
+                            self.log_info("\\n📋 Exemples de composants existants:")
+                            for comp in details['composants_existants'][:5]:
+                                self.log_sku_example(comp['nom'], comp['sku_existant'])
 
                         if details['composants_nouveaux']:
-                            self.log_result("  Exemples de nouveaux composants:")
-                            for comp in details['composants_nouveaux'][:3]:
-                                self.log_result(f"    - {comp['nom']} ({comp['type']})")
+                            self.log_info("\\n🆕 Exemples de nouveaux composants:")
+                            for comp in details['composants_nouveaux'][:5]:
+                                self.log_info(f"    • {comp['nom']} ({comp['type']})")
 
-                self.log_result("\\n✅ Analyse terminée")
+                self.log_success("Analyse terminée avec succès!")
 
+            except PermissionError as e:
+                self.log_error("Accès au fichier refusé!")
+                self.log_info("💡 Solutions possibles:")
+                self.log_info("   1. Fermez le fichier s'il est ouvert dans Excel")
+                self.log_info("   2. Attendez que OneDrive finisse la synchronisation")
+                self.log_info("   3. Copiez le fichier dans un autre dossier")
+                self.log_info("   4. Vérifiez les permissions du fichier")
+                self.log_info(f"\\n📁 Fichier concerné: {Path(file_path).name}")
+            except FileNotFoundError as e:
+                self.log_error(f"Fichier non trouvé: {Path(file_path).name}")
+                self.log_info("💡 Vérifiez que le fichier existe toujours")
             except Exception as e:
-                self.log_result(f"❌ Erreur lors de l'analyse: {str(e)}")
+                self.log_error(f"Erreur lors de l'analyse: {str(e)}")
+                self.log_info("💡 Vérifiez le format du fichier Excel")
             finally:
                 self.progress.stop()
 
@@ -166,7 +289,27 @@ class SKUGeneratorGUI:
         def process_thread():
             try:
                 self.progress.start()
-                self.log_result(f"⚙️ Traitement du fichier: {Path(file_path).name}")
+                self.clear_results()
+
+                # En-tête principal
+                self.log_header(f"⚙️ TRAITEMENT BOM: {Path(file_path).name}")
+
+                # Vérification préalable du fichier
+                self.log_info(f"Fichier: {file_path}")
+                self.log_info("Vérification d'accès au fichier...")
+
+                can_access, error_msg = self.check_file_access(file_path)
+                if not can_access:
+                    self.log_error(f"Impossible d'accéder au fichier: {error_msg}")
+                    self.log_info("💡 Solutions possibles:")
+                    self.log_info("   1. Fermez le fichier s'il est ouvert dans Excel")
+                    self.log_info("   2. Attendez que OneDrive finisse la synchronisation")
+                    self.log_info("   3. Copiez le fichier dans un autre dossier")
+                    self.log_info("   4. Vérifiez les permissions du fichier")
+                    return
+
+                self.log_success("Accès au fichier confirmé!")
+                self.log_info("Traitement en cours...")
 
                 # Traiter le fichier
                 results = self.processor.process_bom_file(file_path)
@@ -178,35 +321,50 @@ class SKUGeneratorGUI:
                 # Exporter les résultats
                 self.processor.export_results(results, output_file)
 
-                # Afficher le résumé
-                self.log_result("\\n📋 RÉSULTATS DU TRAITEMENT:")
+                # Afficher le résumé par domaine
+                self.log_section("RÉSULTATS DU TRAITEMENT")
                 total_components = 0
 
                 for domain, df in results.items():
                     count = len(df)
                     total_components += count
-                    self.log_result(f"  {domain}: {count} composants")
 
-                    # Afficher quelques exemples de SKU
-                    self.log_result(f"  Exemples de SKU {domain}:")
-                    for sku in df['SKU'].head(3):
-                        self.log_result(f"    - {sku}")
-                    self.log_result("")
+                    self.log_info(f"🔧 {domain}: {count} composants traités")
 
-                self.log_result(f"📊 TOTAL: {total_components} composants traités")
-                self.log_result(f"💾 Résultats sauvegardés: {output_file}")
-                self.log_result("✅ Traitement terminé")
+                    # Afficher quelques exemples de SKU avec formatage
+                    self.log_info(f"\\n📋 Exemples de SKU {domain}:")
+                    for _, row in df.head(5).iterrows():
+                        self.log_sku_example(row['Name'], row['SKU'])
+
+                # Résumé final
+                self.log_section("RÉSUMÉ FINAL")
+                self.log_info(f"📊 TOTAL: {total_components} composants traités")
+                self.log_info(f"💾 Fichier généré: {output_file}")
 
                 # Mettre à jour les statistiques
                 self.update_stats()
 
+                self.log_success("Traitement terminé avec succès!")
+
                 # Proposer d'ouvrir le fichier
                 if messagebox.askyesno("Traitement terminé",
-                                     f"Le traitement est terminé.\\n\\nVoulez-vous ouvrir le fichier de résultats?\\n{output_file}"):
+                                     f"Le traitement est terminé avec succès!\\n\\n📊 {total_components} composants traités\\n💾 Fichier: {output_file}\\n\\nVoulez-vous ouvrir le fichier de résultats?"):
                     os.startfile(output_file)
 
+            except PermissionError as e:
+                self.log_error("Accès au fichier refusé!")
+                self.log_info("💡 Solutions possibles:")
+                self.log_info("   1. Fermez le fichier s'il est ouvert dans Excel")
+                self.log_info("   2. Attendez que OneDrive finisse la synchronisation")
+                self.log_info("   3. Copiez le fichier dans un autre dossier")
+                self.log_info("   4. Vérifiez les permissions du fichier")
+                self.log_info(f"\\n📁 Fichier concerné: {Path(file_path).name}")
+            except FileNotFoundError as e:
+                self.log_error(f"Fichier non trouvé: {Path(file_path).name}")
+                self.log_info("💡 Vérifiez que le fichier existe toujours")
             except Exception as e:
-                self.log_result(f"❌ Erreur lors du traitement: {str(e)}")
+                self.log_error(f"Erreur lors du traitement: {str(e)}")
+                self.log_info("💡 Vérifiez le format du fichier Excel")
             finally:
                 self.progress.stop()
 
