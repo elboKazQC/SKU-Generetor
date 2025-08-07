@@ -414,34 +414,65 @@ class SKUGeneratorGUI:
                 if result:
                     self.log_success("Composant trouvé!")
 
-                    # Afficher les informations du composant
+                    # Afficher les informations du composant (améliorées)
                     self.log_section("INFORMATIONS DU COMPOSANT")
-                    self.log_info(f"📦 Nom: {result['nom']}")
-                    self.log_info(f"🏷️  SKU: {result['sku']}")
-                    self.log_info(f"🏭 Domaine: {result['domaine']}")
-                    self.log_info(f"🛣️  Route: {result['route']}")
-                    self.log_info(f"⚙️ Routing: {result['routing']}")
-                    self.log_info(f"🔧 Type: {result['type']}")
-                    self.log_info(f"📅 Date création: {result['date_creation']}")
+                    self.log_info(f"📦 Nom            : {result['nom']}")
 
-                    # Décoder le SKU
-                    self.log_section("DÉCODAGE DU SKU")
-                    sku_parts = result['sku'].split('-')
-                    if len(sku_parts) == 5:
-                        self.log_info(f"🏭 Domaine: {sku_parts[0]} ({result['domaine']})")
-                        self.log_info(f"🛣️  Route: {sku_parts[1]} ({result['route']})")
-                        self.log_info(f"⚙️ Routing: {sku_parts[2]} ({result['routing']})")
-                        self.log_info(f"🔧 Type: {sku_parts[3]} ({result['type']})")
-                        self.log_info(f"📊 Séquence: {sku_parts[4]}")
+                    # Description si disponible
+                    if result.get('description'):
+                        self.log_info(f"🧠 Description    : {result['description']}")
+
+                    self.log_info(f"🏷️  SKU            : {result['sku']}")
+                    self.log_info(f"🏭 Domaine        : {result['domaine']}")
+
+                    # Informations fabricant si disponibles
+                    if result.get('fabricant'):
+                        self.log_info(f"🏢 Fabricant      : {result['fabricant']}")
+                    if result.get('ref_fabricant'):
+                        self.log_info(f"📋 Réf. fabricant : {result['ref_fabricant']}")
+
+                    self.log_info(f"� Date création  : {result['date_creation']}")
+
+                    # Section décodage améliorée
+                    self.log_section(f"STRUCTURE SKU ({result['sku']})")
+
+                    # Décoder le SKU avec les nouvelles méthodes
+                    decoded = self.generator.decode_sku_parts(result['sku'])
+                    if decoded:
+                        self.log_info(f"🏭 Domaine   : {decoded['domaine_code']} → {decoded['domaine_nom']}")
+
+                        # Description du processus
+                        process_desc = self.generator.get_process_description(
+                            decoded['domaine_code'], decoded['route_code'], decoded['routing_code']
+                        )
+                        self.log_info(f"🛠️  Processus : {process_desc}")
+
+                        self.log_info(f"🛣️  Route     : {decoded['route_code']} → {decoded['route_nom']}")
+                        self.log_info(f"⚙️ Routing   : {decoded['routing_code']} → {decoded['routing_nom']}")
+                        self.log_info(f"🔧 Type      : {decoded['type_code']} → {decoded['type_nom']}")
+                        self.log_info(f"🔢 Index     : {decoded['sequence']}")
+                    else:
+                        # Fallback si le décodage échoue
+                        sku_parts = result['sku'].split('-')
+                        if len(sku_parts) == 5:
+                            self.log_info(f"🏭 Domaine: {sku_parts[0]} ({result['domaine']})")
+                            self.log_info(f"🛣️  Route: {sku_parts[1]} ({result['route']})")
+                            self.log_info(f"⚙️ Routing: {sku_parts[2]} ({result['routing']})")
+                            self.log_info(f"🔧 Type: {sku_parts[3]} ({result['type']})")
+                            self.log_info(f"📊 Séquence: {sku_parts[4]}")
 
                     # Rechercher des composants similaires
                     self.log_section("COMPOSANTS SIMILAIRES")
                     similar = self.generator.find_similar_components(result['domaine'], result['type'])
                     if similar:
-                        self.log_info(f"Trouvé {len(similar)} composant(s) similaire(s):")
-                        for comp in similar[:10]:  # Limiter à 10 résultats
-                            if comp['sku'] != sku:  # Exclure le composant recherché
-                                self.log_sku_example(comp['nom'], comp['sku'])
+                        similar_count = len([comp for comp in similar if comp['sku'] != sku])
+                        if similar_count > 0:
+                            self.log_info(f"Trouvé {similar_count} composant(s) similaire(s) du même type:")
+                            for comp in similar[:8]:  # Limiter à 8 résultats
+                                if comp['sku'] != sku:  # Exclure le composant recherché
+                                    self.log_sku_example(comp['nom'], comp['sku'])
+                        else:
+                            self.log_info("Aucun autre composant similaire du même type")
                     else:
                         self.log_info("Aucun composant similaire trouvé")
 

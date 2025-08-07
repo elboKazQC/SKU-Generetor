@@ -78,6 +78,29 @@ class SKUGenerator:
             "PLASTIQUE (UHMW, LEXAN, ...)": "POLY"
         }
 
+        # Mapping des types de composants pour le décodage
+        self.type_mapping = {
+            # Types électriques
+            "Résistances": "RES",
+            "Condensateurs": "CAP",
+            "Inductances": "IND",
+            "Diodes": "DIO",
+            "Transistors": "TRA",
+            "Circuits intégrés": "IC",
+            "Connecteurs": "CON",
+            "Relais": "REL",
+            "Fusibles": "FUS",
+            "Accessoires de borniers": "TERM",
+
+            # Types mécaniques
+            "Pièces Pliées": "121P",
+            "Pièces Usinées": "122U",
+            "Pièces Découpées": "123D",
+            "Boulonnerie": "124B",
+            "Assemblage Mécanique": "125A",
+            "Plastique": "126P"
+        }
+
     def init_database(self):
         """Initialise la base de données SQLite"""
         conn = sqlite3.connect(self.db_path)
@@ -259,7 +282,7 @@ class SKUGenerator:
 
         cursor.execute("""
             SELECT name, sku, domain, route, routing, component_type,
-                   manufacturer, created_date
+                   manufacturer, manufacturer_part, description, created_date
             FROM components
             WHERE sku = ?
         """, (sku.upper(),))
@@ -276,7 +299,9 @@ class SKUGenerator:
                 'routing': result[4],
                 'type': result[5],
                 'fabricant': result[6],
-                'date_creation': result[7]
+                'ref_fabricant': result[7],
+                'description': result[8],
+                'date_creation': result[9]
             }
         return None
 
@@ -364,6 +389,78 @@ class SKUGenerator:
             }
             for result in results
         ]
+
+    def decode_sku_parts(self, sku: str) -> Dict[str, str]:
+        """Décoder les parties d'un SKU avec leurs significations"""
+        parts = sku.split('-')
+        if len(parts) != 5:
+            return {}
+
+        domain_code, route_code, routing_code, type_code, sequence = parts
+
+        # Mapping inverse pour les domaines
+        domain_meaning = {
+            'ELEC': 'Électrique',
+            'MECA': 'Mécanique'
+        }.get(domain_code, domain_code)
+
+        # Mapping inverse pour les routes
+        route_meaning = {}
+        for full_name, code in self.route_mapping.items():
+            route_meaning[code] = full_name
+
+        # Mapping inverse pour les routings
+        routing_meaning = {}
+        for full_name, code in self.routing_mapping.items():
+            routing_meaning[code] = full_name
+
+        # Mapping inverse pour les types
+        type_meaning = {}
+        for full_name, code in self.type_mapping.items():
+            type_meaning[code] = full_name
+
+        return {
+            'domaine_code': domain_code,
+            'domaine_nom': domain_meaning,
+            'route_code': route_code,
+            'route_nom': route_meaning.get(route_code, route_code),
+            'routing_code': routing_code,
+            'routing_nom': routing_meaning.get(routing_code, routing_code),
+            'type_code': type_code,
+            'type_nom': type_meaning.get(type_code, type_code),
+            'sequence': sequence
+        }
+
+    def get_process_description(self, domain: str, route: str, routing: str) -> str:
+        """Obtenir une description du processus basé sur le domaine, route et routing"""
+        if domain == "ELEC":
+            if route == "ASS" and routing == "SMT":
+                return "Assemblage par montage en surface (SMT)"
+            elif route == "ASS" and routing == "THT":
+                return "Assemblage par technologie traversante (THT)"
+            elif route == "ASS":
+                return "Assemblage électrique"
+            elif route == "TEST":
+                return "Test et validation électrique"
+            elif route == "PROG":
+                return "Programmation de composants"
+            else:
+                return f"Processus électrique ({route} → {routing})"
+        elif domain == "MECA":
+            if route == "USIN" and routing == "FRAI":
+                return "Usinage par fraisage"
+            elif route == "USIN" and routing == "TOUR":
+                return "Usinage par tournage"
+            elif route == "BEND" and routing == "BEND":
+                return "Pliage de tôlerie"
+            elif route == "ASS":
+                return "Assemblage mécanique"
+            elif route == "CTRL":
+                return "Contrôle qualité mécanique"
+            else:
+                return f"Processus mécanique ({route} → {routing})"
+        else:
+            return f"Processus {domain} ({route} → {routing})"
 
 if __name__ == "__main__":
     # Test du générateur
