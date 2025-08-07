@@ -252,6 +252,119 @@ class SKUGenerator:
         conn.commit()
         conn.close()
 
+    def search_component_by_sku(self, sku: str) -> Optional[Dict]:
+        """Rechercher un composant par son SKU"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT name, sku, domain, route, routing, component_type,
+                   manufacturer, created_date
+            FROM components
+            WHERE sku = ?
+        """, (sku.upper(),))
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            return {
+                'nom': result[0],
+                'sku': result[1],
+                'domaine': result[2],
+                'route': result[3],
+                'routing': result[4],
+                'type': result[5],
+                'fabricant': result[6],
+                'date_creation': result[7]
+            }
+        return None
+
+    def find_similar_components(self, domain: str, component_type: str) -> List[Dict]:
+        """Trouver des composants similaires par domaine et type"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT name, sku, domain, route, routing, component_type
+            FROM components
+            WHERE domain = ? AND component_type = ?
+            ORDER BY created_date DESC
+            LIMIT 20
+        """, (domain, component_type))
+
+        results = cursor.fetchall()
+        conn.close()
+
+        return [
+            {
+                'nom': result[0],
+                'sku': result[1],
+                'domaine': result[2],
+                'route': result[3],
+                'routing': result[4],
+                'type': result[5]
+            }
+            for result in results
+        ]
+
+    def search_partial_sku(self, partial_sku: str) -> List[Dict]:
+        """Rechercher des SKU qui contiennent une partie du SKU donné"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Recherche avec LIKE pour trouver des SKU similaires
+        search_pattern = f"%{partial_sku.upper()}%"
+
+        cursor.execute("""
+            SELECT name, sku, domain, route, routing, component_type
+            FROM components
+            WHERE sku LIKE ?
+            ORDER BY sku
+            LIMIT 15
+        """, (search_pattern,))
+
+        results = cursor.fetchall()
+        conn.close()
+
+        return [
+            {
+                'nom': result[0],
+                'sku': result[1],
+                'domaine': result[2],
+                'route': result[3],
+                'routing': result[4],
+                'type': result[5]
+            }
+            for result in results
+        ]
+
+    def get_all_skus(self, limit: int = 100) -> List[Dict]:
+        """Récupérer tous les SKU avec pagination"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT name, sku, domain, component_type, created_date
+            FROM components
+            ORDER BY created_date DESC
+            LIMIT ?
+        """, (limit,))
+
+        results = cursor.fetchall()
+        conn.close()
+
+        return [
+            {
+                'nom': result[0],
+                'sku': result[1],
+                'domaine': result[2],
+                'type': result[3],
+                'date_creation': result[4]
+            }
+            for result in results
+        ]
+
 if __name__ == "__main__":
     # Test du générateur
     generator = SKUGenerator()

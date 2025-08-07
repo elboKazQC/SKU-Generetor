@@ -74,6 +74,23 @@ class SKUGeneratorGUI:
         ttk.Button(button_frame, text="🗑️ Effacer résultats",
                   command=self.clear_results).pack(side=tk.LEFT)
 
+        # Section recherche
+        search_frame = ttk.LabelFrame(main_frame, text="Recherche par SKU")
+        search_frame.pack(fill=tk.X, pady=(10, 10))
+
+        # Frame pour la recherche
+        search_input_frame = ttk.Frame(search_frame)
+        search_input_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        ttk.Label(search_input_frame, text="SKU:").pack(side=tk.LEFT, padx=(0, 5))
+
+        self.search_entry = ttk.Entry(search_input_frame, width=30, font=("Consolas", 10))
+        self.search_entry.pack(side=tk.LEFT, padx=(0, 5))
+        self.search_entry.bind('<Return>', lambda e: self.search_sku())
+
+        ttk.Button(search_input_frame, text="🔍 Rechercher",
+                  command=self.search_sku).pack(side=tk.LEFT, padx=(5, 0))
+
         # Zone de résultats
         results_frame = ttk.LabelFrame(main_frame, text="Résultats")
         results_frame.pack(fill=tk.BOTH, expand=True)
@@ -369,6 +386,90 @@ class SKUGeneratorGUI:
                 self.progress.stop()
 
         thread = threading.Thread(target=process_thread)
+        thread.daemon = True
+        thread.start()
+
+    def search_sku(self):
+        """Rechercher un composant par son SKU"""
+        sku = self.search_entry.get().strip().upper()
+
+        if not sku:
+            messagebox.showwarning("Recherche", "Veuillez entrer un SKU à rechercher")
+            return
+
+        def search_thread():
+            try:
+                self.progress.start()
+                self.clear_results()
+
+                # En-tête principal
+                self.log_header(f"🔍 RECHERCHE SKU: {sku}")
+
+                self.log_info(f"Recherche du SKU: {sku}")
+                self.log_info("Consultation de la base de données...")
+
+                # Rechercher dans la base de données
+                result = self.generator.search_component_by_sku(sku)
+
+                if result:
+                    self.log_success("Composant trouvé!")
+
+                    # Afficher les informations du composant
+                    self.log_section("INFORMATIONS DU COMPOSANT")
+                    self.log_info(f"📦 Nom: {result['nom']}")
+                    self.log_info(f"🏷️  SKU: {result['sku']}")
+                    self.log_info(f"🏭 Domaine: {result['domaine']}")
+                    self.log_info(f"🛣️  Route: {result['route']}")
+                    self.log_info(f"⚙️ Routing: {result['routing']}")
+                    self.log_info(f"🔧 Type: {result['type']}")
+                    self.log_info(f"📅 Date création: {result['date_creation']}")
+
+                    # Décoder le SKU
+                    self.log_section("DÉCODAGE DU SKU")
+                    sku_parts = result['sku'].split('-')
+                    if len(sku_parts) == 5:
+                        self.log_info(f"🏭 Domaine: {sku_parts[0]} ({result['domaine']})")
+                        self.log_info(f"🛣️  Route: {sku_parts[1]} ({result['route']})")
+                        self.log_info(f"⚙️ Routing: {sku_parts[2]} ({result['routing']})")
+                        self.log_info(f"🔧 Type: {sku_parts[3]} ({result['type']})")
+                        self.log_info(f"📊 Séquence: {sku_parts[4]}")
+
+                    # Rechercher des composants similaires
+                    self.log_section("COMPOSANTS SIMILAIRES")
+                    similar = self.generator.find_similar_components(result['domaine'], result['type'])
+                    if similar:
+                        self.log_info(f"Trouvé {len(similar)} composant(s) similaire(s):")
+                        for comp in similar[:10]:  # Limiter à 10 résultats
+                            if comp['sku'] != sku:  # Exclure le composant recherché
+                                self.log_sku_example(comp['nom'], comp['sku'])
+                    else:
+                        self.log_info("Aucun composant similaire trouvé")
+
+                else:
+                    self.log_error("SKU non trouvé dans la base de données")
+                    self.log_info("💡 Vérifications possibles:")
+                    self.log_info("   1. Vérifiez l'orthographe du SKU")
+                    self.log_info("   2. Assurez-vous que le composant a été traité")
+                    self.log_info("   3. Le SKU doit être au format: DOMAINE-ROUTE-ROUTING-TYPE-SEQUENCE")
+
+                    # Proposer une recherche partielle
+                    if '-' in sku:
+                        self.log_info("\\n🔍 Recherche de SKU similaires...")
+                        partial_results = self.generator.search_partial_sku(sku)
+                        if partial_results:
+                            self.log_section("SKU SIMILAIRES TROUVÉS")
+                            for comp in partial_results[:10]:
+                                self.log_sku_example(comp['nom'], comp['sku'])
+                        else:
+                            self.log_info("Aucun SKU similaire trouvé")
+
+            except Exception as e:
+                self.log_error(f"Erreur lors de la recherche: {str(e)}")
+                self.log_info("💡 Vérifiez le format du SKU ou contactez l'administrateur")
+            finally:
+                self.progress.stop()
+
+        thread = threading.Thread(target=search_thread)
         thread.daemon = True
         thread.start()
 
