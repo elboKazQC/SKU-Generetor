@@ -1,3 +1,16 @@
+# Dépendances du Générateur de SKU Industriel - Noovelia
+# Installation : pip install -r requirements.txt
+
+# Manipulation de données Excel et traitement
 pandas>=2.0.0
 openpyxl>=3.1.0
-sqlalchemy>=2.0.0
+
+# Interface utilisateur (inclus avec Python mais listé pour clarté)
+# tkinter - inclus avec Python standard
+
+# Base de données (inclus avec Python mais listé pour clarté)  
+# sqlite3 - inclus avec Python standard
+
+# Utilitaires de développement (optionnel)
+# pytest>=7.0.0  # Pour les tests unitaires
+# black>=23.0.0   # Formatage du code
