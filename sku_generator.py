@@ -355,8 +355,54 @@ class SKUGenerator:
         # Pas de redondance détectée, garder tel quel
         return route_code, routing_code, type_code
 
+    def _validate_component(self, component: Component) -> bool:
+        """
+        Valide qu'un composant a les informations minimales requises
+        pour générer un SKU valide
+        """
+        # Vérifier que le nom n'est pas vide ou juste des espaces
+        if not component.name or not component.name.strip():
+            logger.warning(f"Composant rejeté: nom vide ou manquant")
+            return False
+            
+        # Vérifier que le nom n'est pas un placeholder générique
+        invalid_names = ['nan', 'none', 'null', '', '(vide)', 'empty', 'unnamed']
+        name_lower = component.name.lower().strip()
+        if name_lower in invalid_names:
+            logger.warning(f"Composant rejeté: nom invalide '{component.name}'")
+            return False
+            
+        # Vérifier que la description n'est pas vide (peut être moins strict)
+        if not component.description or not component.description.strip():
+            logger.warning(f"Composant '{component.name}': description vide")
+            # On peut permettre une description vide mais on l'indique
+            component.description = "Description non fournie"
+            
+        # Vérifier que le domaine est valide
+        if not component.domain or component.domain not in ['ELEC', 'MECA']:
+            logger.warning(f"Composant '{component.name}': domaine invalide '{component.domain}'")
+            return False
+            
+        # Vérifier que le type de composant n'est pas vide
+        if not component.component_type or not component.component_type.strip():
+            logger.warning(f"Composant '{component.name}': type de composant manquant")
+            return False
+            
+        # Vérifier que le type n'est pas un placeholder
+        type_lower = component.component_type.lower().strip()
+        if type_lower in invalid_names:
+            logger.warning(f"Composant '{component.name}': type invalide '{component.component_type}'")
+            return False
+
+        return True
+
     def generate_sku(self, component: Component) -> str:
         """Génère un SKU optimisé pour un composant"""
+        
+        # Validation des champs obligatoires pour éviter les SKU vides
+        if not self._validate_component(component):
+            logger.warning(f"Composant invalide ignoré: {component.name} - {component.description}")
+            raise ValueError(f"Composant invalide: champs obligatoires manquants")
 
         # Vérifier si le composant existe déjà
         existing_sku = self.get_existing_sku(component)

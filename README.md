@@ -159,6 +159,14 @@ Votre fichier BOM doit contenir ces colonnes :
 
 ## 🔧 Fonctionnalités Techniques
 
+### Validation des Composants
+- **Champs obligatoires** : Nom, domaine (ELEC/MECA), et type de composant requis
+- **Noms invalides rejetés** : Ignore 'nan', '', 'null', '(vide)', espaces uniquement
+- **Domaines validés** : Seuls ELEC et MECA sont acceptés
+- **Types requis** : Le type de composant ne peut pas être vide
+- **Description auto-complétée** : Si vide, remplacée par "Description non fournie"
+- **Compteur d'ignorés** : Rapport du nombre d'entrées invalides dans les logs
+
 ### Base de Données
 - **SQLite embarqué** : Pas de serveur requis
 - **Schema optimisé** : Index pour recherches rapides
@@ -174,6 +182,8 @@ Votre fichier BOM doit contenir ces colonnes :
 - **Validation d'accès fichier** : Détection OneDrive/permissions
 - **Formats Excel flexibles** : Support multi-onglets
 - **Récupération d'erreurs** : Messages explicites pour l'utilisateur
+- **Validation des composants** : Rejet automatique des entrées vides ou invalides
+- **Filtrage intelligent** : Ignore les lignes avec nom vide, 'nan', ou types manquants
 
 ## 📊 Statistiques et Monitoring
 
@@ -302,6 +312,8 @@ Ce système génère automatiquement des SKU (Stock Keeping Units) pour les comp
 - Hash MD5 des composants pour identifier les pièces similaires
 - Réutilisation des SKU existants
 - Évite la duplication
+- **Validation des entrées** : Rejet automatique des composants vides ou invalides
+- **Nettoyage automatique** : Filtrage des entrées 'nan', noms vides, types manquants
 
 ### ✅ Base de Données Persistante
 - SQLite pour stocker les composants et SKU

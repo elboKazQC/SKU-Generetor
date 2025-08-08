@@ -20,66 +20,94 @@ class BOMProcessor:
     def process_electrical_bom(self, df: pd.DataFrame) -> pd.DataFrame:
         """Traite le BOM électrique"""
         results = []
+        skipped_count = 0
 
-        for _, row in df.iterrows():
-            component = Component(
-                name=str(row.get('Name', '')),
-                description=str(row.get('Description', '')),
-                domain="ELEC",
-                component_type=str(row.get('ComponentType', '')),
-                route="",  # Sera calculé automatiquement
-                routing="",  # Sera calculé automatiquement
-                manufacturer=str(row.get('Manufacturer', '')),
-                manufacturer_part=str(row.get('Manufacturer PN', '')),
-                quantity=row.get('Quantity'),
-                designator=str(row.get('Designator', ''))
-            )
+        for line_num, (idx, row) in enumerate(df.iterrows(), start=2):
+            try:
+                component = Component(
+                    name=str(row.get('Name', '')),
+                    description=str(row.get('Description', '')),
+                    domain="ELEC",
+                    component_type=str(row.get('ComponentType', '')),
+                    route="",  # Sera calculé automatiquement
+                    routing="",  # Sera calculé automatiquement
+                    manufacturer=str(row.get('Manufacturer', '')),
+                    manufacturer_part=str(row.get('Manufacturer PN', '')),
+                    quantity=row.get('Quantity'),
+                    designator=str(row.get('Designator', ''))
+                )
 
-            sku = self.sku_generator.generate_sku(component)
+                sku = self.sku_generator.generate_sku(component)
 
-            results.append({
-                'SKU': sku,
-                'Name': component.name,
-                'Description': component.description,
-                'ComponentType': component.component_type,
-                'Manufacturer': component.manufacturer,
-                'Manufacturer_PN': component.manufacturer_part,
-                'Quantity': component.quantity,
-                'Designator': component.designator,
-                'Domain': 'ÉLECTRIQUE'
-            })
+                results.append({
+                    'SKU': sku,
+                    'Name': component.name,
+                    'Description': component.description,
+                    'ComponentType': component.component_type,
+                    'Manufacturer': component.manufacturer,
+                    'Manufacturer_PN': component.manufacturer_part,
+                    'Quantity': component.quantity,
+                    'Designator': component.designator,
+                    'Domain': 'ÉLECTRIQUE'
+                })
+            
+            except ValueError as e:
+                skipped_count += 1
+                logger.warning(f"Composant électrique ignoré (ligne {line_num}): {e}")
+                continue
+            except Exception as e:
+                skipped_count += 1
+                logger.error(f"Erreur lors du traitement du composant électrique (ligne {line_num}): {e}")
+                continue
+
+        if skipped_count > 0:
+            logger.info(f"🚨 {skipped_count} composants électriques ignorés (items vides ou invalides)")
 
         return pd.DataFrame(results)
 
     def process_mechanical_bom(self, df: pd.DataFrame) -> pd.DataFrame:
         """Traite le BOM mécanique"""
         results = []
+        skipped_count = 0
 
-        for _, row in df.iterrows():
-            component = Component(
-                name=str(row.get('No. de pièce', '')),
-                description=str(row.get('Description Française', '')),
-                domain="MECA",
-                component_type=str(row.get('Type', '')),
-                route="",  # Sera calculé automatiquement
-                routing="",  # Sera calculé automatiquement
-                manufacturer=str(row.get('Manufacturier', '')),
-                manufacturer_part=str(row.get('No. de pièce', '')),
-                quantity=row.get('QTE TOTALE')
-            )
+        for line_num, (idx, row) in enumerate(df.iterrows(), start=2):
+            try:
+                component = Component(
+                    name=str(row.get('No. de pièce', '')),
+                    description=str(row.get('Description Française', '')),
+                    domain="MECA",
+                    component_type=str(row.get('Type', '')),
+                    route="",  # Sera calculé automatiquement
+                    routing="",  # Sera calculé automatiquement
+                    manufacturer=str(row.get('Manufacturier', '')),
+                    manufacturer_part=str(row.get('No. de pièce', '')),
+                    quantity=row.get('QTE TOTALE')
+                )
 
-            sku = self.sku_generator.generate_sku(component)
+                sku = self.sku_generator.generate_sku(component)
 
-            results.append({
-                'SKU': sku,
-                'Name': component.name,
-                'Description': component.description,
-                'ComponentType': component.component_type,
-                'Manufacturer': component.manufacturer,
-                'Manufacturer_PN': component.manufacturer_part,
-                'Quantity': component.quantity,
-                'Domain': 'MÉCANIQUE'
-            })
+                results.append({
+                    'SKU': sku,
+                    'Name': component.name,
+                    'Description': component.description,
+                    'ComponentType': component.component_type,
+                    'Manufacturer': component.manufacturer,
+                    'Manufacturer_PN': component.manufacturer_part,
+                    'Quantity': component.quantity,
+                    'Domain': 'MÉCANIQUE'
+                })
+            
+            except ValueError as e:
+                skipped_count += 1
+                logger.warning(f"Composant mécanique ignoré (ligne {line_num}): {e}")
+                continue
+            except Exception as e:
+                skipped_count += 1
+                logger.error(f"Erreur lors du traitement du composant mécanique (ligne {line_num}): {e}")
+                continue
+
+        if skipped_count > 0:
+            logger.info(f"🚨 {skipped_count} composants mécaniques ignorés (items vides ou invalides)")
 
         return pd.DataFrame(results)
 
