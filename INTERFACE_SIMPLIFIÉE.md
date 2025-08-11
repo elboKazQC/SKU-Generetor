@@ -87,7 +87,7 @@ self.window.geometry("1200x800")  # Au lieu de "1400x900"
 1. **Lancer :** `python gui.py`
 2. **Cliquer :** "⚙️ Traiter et générer SKU"
 3. **Sélectionner :** Votre fichier BOM
-4. **Valider :** 
+4. **Valider :**
    - ✅ Voir directement le SKU de chaque composant dans la colonne "SKU Aperçu"
    - 🖱️ Cliquer sur les lignes pour sélectionner/désélectionner
    - 📊 Suivre les statistiques en temps réel

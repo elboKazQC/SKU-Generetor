@@ -75,18 +75,18 @@ def on_tree_click(self, event, domain):
     """Gérer les clics sur le treeview"""
     tree = getattr(self, f"tree_{domain.lower()}")
     item = tree.identify_row(event.y)
-    
+
     if item and item in self.component_vars[domain]:
         # Toggle la sélection
         current_value = self.component_vars[domain][item].get()
         new_value = not current_value
         self.component_vars[domain][item].set(new_value)
-        
+
         # Mise à jour visuelle immédiate
         self.update_display(item, new_value)
         self.update_stats()
         self.update_sku_preview_panel()
-        
+
         return "break"  # Empêcher sélection par défaut
 ```
 

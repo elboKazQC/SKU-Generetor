@@ -9,7 +9,7 @@ from component_validation_window import ComponentValidationWindow
 
 def test_validation_window():
     """Tester la fenêtre de validation avec des données simulées"""
-    
+
     # Créer des composants de test
     electrical_components = [
         Component(
@@ -49,7 +49,7 @@ def test_validation_window():
             designator="J1"
         )
     ]
-    
+
     mechanical_components = [
         Component(
             name="Vis M4x16",
@@ -85,13 +85,13 @@ def test_validation_window():
             quantity=1
         )
     ]
-    
+
     # Données de test
     components_data = {
         "ELEC": electrical_components,
         "MECA": mechanical_components
     }
-    
+
     def on_validation_complete(selected_components):
         """Callback appelé après validation"""
         print("🎯 COMPOSANTS SÉLECTIONNÉS:")
@@ -99,14 +99,14 @@ def test_validation_window():
             print(f"\\n{domain}: {len(components)} composants")
             for comp in components:
                 print(f"  - {comp.name}")
-        
+
         # Fermer l'application après validation
         root.destroy()
-    
+
     # Créer la fenêtre principale
     root = tk.Tk()
     root.withdraw()  # Cacher la fenêtre principale
-    
+
     # Créer la fenêtre de validation
     validation_window = ComponentValidationWindow(
         root,
@@ -114,10 +114,10 @@ def test_validation_window():
         "test_bom.xlsx",
         callback=on_validation_complete
     )
-    
+
     print("🧪 FENÊTRE DE VALIDATION OUVERTE")
     print("Sélectionnez/désélectionnez les composants et cliquez sur 'Générer les SKU'")
-    
+
     root.mainloop()
 
 if __name__ == "__main__":

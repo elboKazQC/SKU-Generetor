@@ -366,9 +366,9 @@ class SKUGeneratorGUI:
 
         # Créer et afficher la fenêtre de validation
         validation_window = ComponentValidationWindow(
-            self.root, 
-            components_by_domain, 
-            file_path, 
+            self.root,
+            components_by_domain,
+            file_path,
             callback=on_validation_complete
         )
 
@@ -377,7 +377,7 @@ class SKUGeneratorGUI:
         def process_thread():
             try:
                 self.progress.start()
-                
+
                 # En-tête principal
                 self.log_header(f"⚙️ GÉNÉRATION DES SKU")
                 self.log_info(f"Fichier: {Path(file_path).name}")
@@ -391,7 +391,7 @@ class SKUGeneratorGUI:
 
                 # Exporter les résultats
                 self.processor.export_results(results, output_file)
-                
+
                 # Export ODOO automatique
                 try:
                     odoo_count, odoo_file = self.odoo_integration.export_to_odoo_csv(results, f"ODOO_{output_file}")
@@ -639,7 +639,7 @@ class SKUGeneratorGUI:
         """Créer un template d'import pour ODOO"""
         try:
             template_file = self.odoo_integration.create_import_template()
-            
+
             self.clear_results()
             self.log_header("📤 TEMPLATE ODOO CRÉÉ")
             self.log_success(f"Template généré: {template_file}")
@@ -652,12 +652,12 @@ class SKUGeneratorGUI:
             self.log_info("  1. Remplissez la feuille 'Import_ODOO'")
             self.log_info("  2. Importez dans ODOO via Inventaire > Produits")
             self.log_info("  3. Utilisez le format CSV avec séparateur ';'")
-            
+
             # Proposer d'ouvrir
-            if messagebox.askyesno("Template créé", 
+            if messagebox.askyesno("Template créé",
                                  f"Template ODOO créé avec succès!\n\nFichier: {template_file}\n\nVoulez-vous l'ouvrir?"):
                 os.startfile(template_file)
-                
+
         except Exception as e:
             self.log_error(f"Erreur lors de la création du template: {str(e)}")
 

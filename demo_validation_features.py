@@ -11,13 +11,13 @@ from sku_generator import SKUGenerator, Component
 
 def demo_sku_preview():
     """Démonstration de l'aperçu des SKU"""
-    
+
     print("🎯 DÉMONSTRATION DE L'APERÇU DES SKU")
     print("=" * 50)
-    
+
     # Créer le générateur
     generator = SKUGenerator()
-    
+
     # Composants de test avec différents cas
     test_components = [
         # Composant électrique normal
@@ -33,7 +33,7 @@ def demo_sku_preview():
             quantity=10,
             designator="R1"
         ),
-        
+
         # Composant avec nom long
         Component(
             name="Condensateur électrolytique haute capacité pour alimentation",
@@ -47,7 +47,7 @@ def demo_sku_preview():
             quantity=5,
             designator="C1"
         ),
-        
+
         # Composant mécanique
         Component(
             name="Vis CHC M6x20",
@@ -60,7 +60,7 @@ def demo_sku_preview():
             manufacturer_part="CHC_M6_20",
             quantity=20
         ),
-        
+
         # Composant avec caractères spéciaux
         Component(
             name="IC µC STM32",
@@ -75,10 +75,10 @@ def demo_sku_preview():
             designator="U1"
         )
     ]
-    
+
     print("📋 Test de génération des SKU d'aperçu:")
     print("-" * 40)
-    
+
     for i, component in enumerate(test_components, 1):
         try:
             sku = generator.generate_sku(component)
@@ -86,27 +86,27 @@ def demo_sku_preview():
         except Exception as e:
             sku = f"❌ ERREUR: {str(e)}"
             status = "❌"
-        
+
         print(f"{i}. {status} {component.name[:35]:35} → {sku}")
-    
+
     print("\n📊 STRUCTURE D'APERÇU SIMULÉE:")
     print("=" * 60)
     print("📋 APERÇU DES SKU QUI SERONT GÉNÉRÉS")
     print("=" * 50)
     print()
-    
+
     # Simuler l'aperçu par domaine
     domains = {}
     for component in test_components:
         if component.domain not in domains:
             domains[component.domain] = []
         domains[component.domain].append(component)
-    
+
     total_count = 0
     for domain, components in domains.items():
         print(f"🔧 {domain} ({len(components)} composants)")
         print("-" * 40)
-        
+
         for component in components:
             try:
                 sku = generator.generate_sku(component)
@@ -114,11 +114,11 @@ def demo_sku_preview():
                 total_count += 1
             except Exception as e:
                 print(f"  • {component.name[:30]:30} → ❌ ERREUR: {str(e)[:20]}")
-        
+
         print()
-    
+
     print(f"✅ RÉSUMÉ: {total_count} SKU seront générés")
-    
+
     print("\n🎯 NOUVELLES FONCTIONNALITÉS IMPLÉMENTÉES:")
     print("-" * 50)
     print("✅ 1. Sélection individuelle par clic sur les lignes")
@@ -132,15 +132,15 @@ def demo_sku_preview():
 
 def demo_click_interaction():
     """Démonstration de l'interaction par clic"""
-    
+
     print("\n🖱️ DÉMONSTRATION DES INTERACTIONS PAR CLIC")
     print("=" * 50)
-    
+
     print("📝 PROBLÈME RÉSOLU:")
     print("❌ Avant: Les clics individuels ne fonctionnaient pas")
     print("✅ Après: Clic sur n'importe quelle ligne pour sélectionner/désélectionner")
     print()
-    
+
     print("🔧 SOLUTION TECHNIQUE:")
     print("1. Remplacement de tree.tag_bind() par tree.bind()")
     print("2. Gestionnaire d'événement on_tree_click() amélioré")
@@ -148,7 +148,7 @@ def demo_click_interaction():
     print("4. Mise à jour immédiate de l'aperçu")
     print("5. Retour 'break' pour empêcher la sélection par défaut")
     print()
-    
+
     print("📋 FONCTIONNALITÉS D'INTERACTION:")
     print("• Clic simple: Sélectionner/désélectionner")
     print("• Double-clic: Afficher les détails du composant")
@@ -159,7 +159,7 @@ def demo_click_interaction():
 if __name__ == "__main__":
     demo_sku_preview()
     demo_click_interaction()
-    
+
     print("\n🚀 POUR TESTER EN MODE INTERACTIF:")
     print("python test_validation_improvements.py")
     print("\n🎯 POUR UTILISER AVEC VOTRE FICHIER BOM:")

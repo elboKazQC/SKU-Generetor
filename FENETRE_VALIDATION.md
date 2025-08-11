@@ -67,7 +67,7 @@ Fichier BOM → Extraction des composants → Fenêtre de validation → Génér
 
 ### 🔘 **Boutons d'Action**
 - **✅ Tout sélectionner**: Coche tous les composants
-- **❌ Tout désélectionner**: Décoche tous les composants  
+- **❌ Tout désélectionner**: Décoche tous les composants
 - **❌ Annuler**: Ferme sans traiter
 - **✅ Générer les SKU**: Lance la génération pour les composants sélectionnés
 

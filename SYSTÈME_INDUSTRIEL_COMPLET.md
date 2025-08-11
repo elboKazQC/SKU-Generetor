@@ -55,7 +55,7 @@ ALTIUM DESIGNER:
 3. Colonnes requises: Name, Description, ComponentType, Manufacturer, Manufacturer PN, Quantity, Designator
 
 SOLIDWORKS:
-1. Terminer l'assemblage mécanique  
+1. Terminer l'assemblage mécanique
 2. Générer BOM → Fichier Excel
 3. Colonnes requises: No. de pièce, Description Française, Type, Manufacturier, QTE TOTALE
 ```
@@ -79,7 +79,7 @@ AUTOMATIQUE (lors de la génération):
 ✅ Fichier ODOO: ODOO_SKU_[nom_fichier].xlsx
 
 MANUEL (si besoin):
-1. Cliquer: "📤 Export ODOO" 
+1. Cliquer: "📤 Export ODOO"
 2. Récupérer: template_import_odoo.xlsx
 3. Remplir: Feuille "Import_ODOO"
 4. Importer: Dans ODOO via Inventaire > Produits
@@ -129,7 +129,7 @@ Décodage automatique:
 ### **🔍 Validation multicouche**
 ```
 1. Validation technique: Champs obligatoires
-2. Validation métier: Cohérence des données  
+2. Validation métier: Cohérence des données
 3. Validation utilisateur: Sélection manuelle
 4. Validation ODOO: Format compatible ERP
 ```
@@ -148,7 +148,7 @@ def sync_with_odoo_api():
 
 ### **🔄 Import PLM**
 ```python
-# Intégration PLM future  
+# Intégration PLM future
 def import_from_plm():
     """Import depuis système PLM"""
     # Solidworks PDM
@@ -171,7 +171,7 @@ def generate_analytics():
 ### **📋 Fichiers générés automatiquement :**
 ```
 📄 SKU_[projet].xlsx          → Fichier principal avec SKU
-📄 ODOO_SKU_[projet].xlsx     → Export ODOO automatique  
+📄 ODOO_SKU_[projet].xlsx     → Export ODOO automatique
 📄 template_import_odoo.xlsx  → Template pour import manuel
 📄 odoo_import.csv           → Format CSV pour import
 📄 sku_database.db           → Base de données SKU
@@ -180,7 +180,7 @@ def generate_analytics():
 ### **🎯 Colonnes export ODOO :**
 ```
 default_code     → SKU unique
-name            → Nom du composant  
+name            → Nom du composant
 description     → Description détaillée
 categ_id        → Catégorie (Électronique/Mécanique)
 manufacturer_name    → Fabricant
@@ -200,11 +200,11 @@ purchase_ok     → Achetable (True)
 
 Vous avez créé une **solution professionnelle complète** qui :
 
-✅ **Centralise** tous les BOM (Altium + SolidWorks)  
-✅ **Standardise** la génération des SKU  
-✅ **Valide** avant intégration  
-✅ **Exporte** directement vers ODOO  
-✅ **Évolue** avec vos besoins  
+✅ **Centralise** tous les BOM (Altium + SolidWorks)
+✅ **Standardise** la génération des SKU
+✅ **Valide** avant intégration
+✅ **Exporte** directement vers ODOO
+✅ **Évolue** avec vos besoins
 
 C'est exactement le type de système qu'utilisent les **grandes entreprises industrielles** pour gérer leurs nomenclatures !
 

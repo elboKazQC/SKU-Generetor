@@ -91,7 +91,7 @@ class BOMProcessor:
                     components.append(component)
                 else:
                     skipped_count += 1
-            
+
             except Exception as e:
                 skipped_count += 1
                 logger.warning(f"Composant électrique ignoré (ligne {line_num}): {e}")
@@ -168,7 +168,7 @@ class BOMProcessor:
                     'Designator': component.designator,
                     'Domain': 'ÉLECTRIQUE'
                 })
-            
+
             except Exception as e:
                 logger.error(f"Erreur lors de la génération du SKU pour {component.name}: {e}")
                 continue
