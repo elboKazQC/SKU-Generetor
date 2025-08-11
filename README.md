@@ -7,10 +7,11 @@ Application Python complète pour générer automatiquement des **codes SKU indu
 ## ✨ Fonctionnalités Principales
 
 ### 🔧 **Génération de SKU Intelligente**
-- **Format Standardisé** : `DOMAINE-ROUTE-ROUTING-TYPE-SEQUENCE`
-- **Logique Industrielle** : Intégration complète des processus de fabrication
-- **Codes Français Lisibles** : Format hybride optimisé pour les opérateurs
+- **Format Simplifié** : `FAMILLE-SOUS_FAMILLE-SEQUENCE` (40% plus court !)
+- **Logique Industrielle** : Famille = Domaine, Sous-famille = Type de composant
+- **Codes Français Lisibles** : Actions intégrées (VISSER, PLIAGE, RESIST, etc.)
 - **Alphabet Industriel** : Évite les caractères ambigus (0/O, 1/I, 9/g)
+- **Rétrocompatibilité** : Support de l'ancien format à 5 parties
 
 ### 📊 **Interface Utilisateur Intuitive**
 - **Interface Graphique Modern** : Application tkinter avec design professionnel
@@ -97,21 +98,32 @@ sqlite3 (inclus avec Python)
 
 ## 🏷️ Format des SKU
 
-### Structure Complète
+### Structure Simplifiée (Nouveau)
 ```
-MECA-ASS-ASM-PLIAGE-AAAA
- │    │   │    │      └─── Séquence unique (Base-29)
- │    │   │    └────────── Type français lisible étendu (5-6 lettres)
- │    │   └─────────────── Routing (opération)
- │    └─────────────────── Route (processus)
- └───────────────────────── Domaine (ELEC/MECA)
+MECA-VISSER-AAAA
+ │    │      └─── Séquence unique (Base-29, 4 caractères)
+ │    └────────── Sous-famille (Type composant, action intégrée)
+ └─────────────── Famille (ELEC/MECA, domaine principal)
 ```
 
-### Exemples Réels avec Codes Étendus
-- **ELEC-CIR-IMP-CONNEC-AAAB** : Connecteur de circuit imprimé (à connecter)
-- **MECA-ASS-MNT-PLIAGE-AAAC** : Pièce pliée pour assemblage (à plier)
-- **ELEC-ALI-REG-RESIST-AAAD** : Résistance d'alimentation (à souder)
-- **MECA-BOLT-BOLT-VISSER-AAAE** : Boulonnerie (à visser)
+### Exemples Réels Simplifiés
+- **ELEC-RESIST-AAAA** : Résistance électrique (à souder)
+- **MECA-VISSER-AAAB** : Boulonnerie mécanique (à visser)  
+- **ELEC-CONNEC-AAAC** : Connecteur électrique (à connecter)
+- **MECA-PLIAGE-AAAD** : Pièce mécanique pliée (à plier)
+
+### Avantages du Nouveau Format
+- **40% plus court** : MECA-VISSER-AAAA vs MECA-BOLT-BOLT-VISSER-AAAA
+- **Plus lisible** : Action directement visible dans le SKU
+- **Moins d'erreurs** : Saisie manuelle simplifiée
+- **Logique préservée** : Famille + Sous-famille + Séquence
+
+### Rétrocompatibilité
+Le système supporte encore l'ancien format à 5 parties :
+```
+MECA-BOLT-BOLT-VISSER-AAAA (ancien format - encore décodable)
+MECA-VISSER-AAAA           (nouveau format - recommandé)
+```
 
 ### Types Français Supportés (Codes Étendus 5-6 lettres)
 | Code | Signification | Description | Action |
@@ -266,7 +278,14 @@ Ce projet est développé spécifiquement pour Noovelia. Tous droits réservés.
 
 ## 🔄 Historique des Versions
 
-### v2.3 - Validation Interactive des Composants (Actuel)
+### v2.4 - SKU Simplifiés (Actuel) 
+- ✅ **Nouveau format ultra-simplifié** : `FAMILLE-SOUS_FAMILLE-SEQUENCE`
+- ✅ **40% de réduction** de la longueur des SKU
+- ✅ **Rétrocompatibilité totale** avec l'ancien format
+- ✅ **Performance améliorée** et code optimisé
+- ✅ **Guide de migration** complet inclus
+
+### v2.3 - Validation Interactive des Composants
 - ✅ Fenêtre de validation avant génération des SKU
 - ✅ Sélection/décocher interactive des composants
 - ✅ Aperçu complet par domaine (ELEC/MECA)

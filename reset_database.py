@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Script pour réinitialiser complètement la base de données SKU
+Compatible avec le nouveau format simplifié FAMILLE-SOUS_FAMILLE-SEQUENCE
 """
 
 import sqlite3
@@ -31,9 +32,19 @@ def reset_database(db_path: str = "sku_database.db"):
             cursor.execute("SELECT COUNT(*) FROM components")
             component_count = cursor.fetchone()[0]
 
-            # Compter les compteurs
-            cursor.execute("SELECT COUNT(*) FROM sku_counters")
-            counter_count = cursor.fetchone()[0]
+            # Compter les compteurs (ancien format)
+            try:
+                cursor.execute("SELECT COUNT(*) FROM sku_counters")
+                counter_count = cursor.fetchone()[0]
+            except:
+                counter_count = 0
+
+            # Compter les compteurs simplifiés (nouveau format)
+            try:
+                cursor.execute("SELECT COUNT(*) FROM sku_counters_simplified")
+                counter_simplified_count = cursor.fetchone()[0]
+            except:
+                counter_simplified_count = 0
 
             # Statistiques par domaine
             cursor.execute("SELECT domain, COUNT(*) FROM components GROUP BY domain")
@@ -43,9 +54,22 @@ def reset_database(db_path: str = "sku_database.db"):
 
             print(f"📊 Statistiques actuelles:")
             print(f"  - Total composants: {component_count}")
-            print(f"  - Compteurs SKU: {counter_count}")
+            print(f"  - Compteurs SKU (ancien format): {counter_count}")
+            print(f"  - Compteurs SKU (nouveau format): {counter_simplified_count}")
             for domain, count in domain_stats:
                 print(f"  - {domain}: {count} composants")
+
+            # Afficher quelques exemples de SKU
+            if component_count > 0:
+                print(f"\n📋 Exemples de SKU dans la base:")
+                conn2 = sqlite3.connect(db_path)
+                cursor2 = conn2.cursor()
+                cursor2.execute("SELECT name, sku, domain FROM components LIMIT 5")
+                examples = cursor2.fetchall()
+                conn2.close()
+                
+                for name, sku, domain in examples:
+                    print(f"  - {name[:25]:<25} → {sku} ({domain})")
 
         except Exception as e:
             print(f"⚠️ Erreur lors de la lecture des statistiques: {e}")

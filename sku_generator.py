@@ -264,7 +264,7 @@ class SKUGenerator:
         return result[0] if result else None
 
     def get_next_sequence(self, domain: str, route: str, routing: str, type_code: str) -> int:
-        """Obtient le prochain numéro de séquence"""
+        """Obtient le prochain numéro de séquence (format ancien)"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
@@ -288,6 +288,47 @@ class SKUGenerator:
                 INSERT INTO sku_counters (domain, route, routing, type_code, counter)
                 VALUES (?, ?, ?, ?, ?)
             ''', (domain, route, routing, type_code, new_counter))
+
+        conn.commit()
+        conn.close()
+
+        return new_counter
+
+    def get_next_sequence_simplified(self, famille: str, sous_famille: str) -> int:
+        """Obtient le prochain numéro de séquence pour le format simplifié FAMILLE-SOUS_FAMILLE"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Créer la table simplifiée si elle n'existe pas
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sku_counters_simplified (
+                famille TEXT,
+                sous_famille TEXT,
+                counter INTEGER DEFAULT 0,
+                PRIMARY KEY (famille, sous_famille)
+            )
+        ''')
+
+        cursor.execute('''
+            SELECT counter FROM sku_counters_simplified
+            WHERE famille = ? AND sous_famille = ?
+        ''', (famille, sous_famille))
+
+        result = cursor.fetchone()
+
+        if result:
+            new_counter = result[0] + 1
+            cursor.execute('''
+                UPDATE sku_counters_simplified
+                SET counter = ?
+                WHERE famille = ? AND sous_famille = ?
+            ''', (new_counter, famille, sous_famille))
+        else:
+            new_counter = 1
+            cursor.execute('''
+                INSERT INTO sku_counters_simplified (famille, sous_famille, counter)
+                VALUES (?, ?, ?)
+            ''', (famille, sous_famille, new_counter))
 
         conn.commit()
         conn.close()
@@ -403,7 +444,7 @@ class SKUGenerator:
         return self._validate_component(component)
 
     def generate_sku(self, component: Component) -> str:
-        """Génère un SKU optimisé pour un composant"""
+        """Génère un SKU simplifié avec seulement FAMILLE-SOUS_FAMILLE-SEQUENCE"""
 
         # Validation des champs obligatoires pour éviter les SKU vides
         if not self._validate_component(component):
@@ -416,29 +457,26 @@ class SKUGenerator:
             logger.info(f"Composant existant trouvé: {existing_sku}")
             return existing_sku
 
-        # Générer les codes de base
-        route_code = self.get_route_code(component.component_type, component.domain)
-        routing_code = self.get_routing_code(component.component_type)
-        type_code = self.normalize_text(component.component_type, 6)
+        # NOUVELLE LOGIQUE SIMPLIFIÉE : FAMILLE-SOUS_FAMILLE-SEQUENCE
+        # FAMILLE = Domaine (ELEC/MECA)
+        famille = component.domain
+        
+        # SOUS_FAMILLE = Type de composant simplifié (sans redondance)
+        sous_famille = self.normalize_text(component.component_type, 6)
 
-        # Optimiser le format pour éviter les redondances
-        route_opt, routing_opt, type_opt = self.optimize_sku_format(
-            component.domain, route_code, routing_code, type_code
-        )
-
-        # Obtenir le numéro de séquence avec les codes optimisés
-        sequence = self.get_next_sequence(component.domain, route_opt, routing_opt, type_opt)
+        # Obtenir le numéro de séquence simplifié
+        sequence = self.get_next_sequence_simplified(famille, sous_famille)
 
         # Formater la séquence avec l'alphabet industriel
         sequence_code = self.format_sequence(sequence)
 
-        # Construire le SKU optimisé
-        sku = f"{component.domain}-{route_opt}-{routing_opt}-{type_opt}-{sequence_code}"
+        # Construire le SKU simplifié : FAMILLE-SOUS_FAMILLE-SEQUENCE
+        sku = f"{famille}-{sous_famille}-{sequence_code}"
 
         # Sauvegarder dans la base de données
         self.save_component(component, sku)
 
-        logger.info(f"Nouveau SKU optimisé généré: {sku}")
+        logger.info(f"Nouveau SKU simplifié généré: {sku}")
         return sku
 
     def save_component(self, component: Component, sku: str):
@@ -578,45 +616,78 @@ class SKUGenerator:
         ]
 
     def decode_sku_parts(self, sku: str) -> Dict[str, str]:
-        """Décoder les parties d'un SKU avec leurs significations"""
+        """Décoder les parties d'un SKU avec leurs significations - Support format simplifié et ancien"""
         parts = sku.split('-')
-        if len(parts) != 5:
-            return {}
+        
+        # Nouveau format simplifié : FAMILLE-SOUS_FAMILLE-SEQUENCE (3 parties)
+        if len(parts) == 3:
+            famille_code, sous_famille_code, sequence = parts
 
-        domain_code, route_code, routing_code, type_code, sequence = parts
+            # Mapping inverse pour les domaines/familles
+            famille_meaning = {
+                'ELEC': 'Électrique',
+                'MECA': 'Mécanique'
+            }.get(famille_code, famille_code)
 
-        # Mapping inverse pour les domaines
-        domain_meaning = {
-            'ELEC': 'Électrique',
-            'MECA': 'Mécanique'
-        }.get(domain_code, domain_code)
+            # Mapping inverse pour les types/sous-familles
+            sous_famille_meaning = {}
+            for full_name, code in self.type_mapping.items():
+                sous_famille_meaning[code] = full_name
 
-        # Mapping inverse pour les routes
-        route_meaning = {}
-        for full_name, code in self.route_mapping.items():
-            route_meaning[code] = full_name
+            return {
+                'format': 'simplifie',
+                'famille_code': famille_code,
+                'famille_nom': famille_meaning,
+                'sous_famille_code': sous_famille_code,
+                'sous_famille_nom': sous_famille_meaning.get(sous_famille_code, sous_famille_code),
+                'sequence': sequence,
+                'description': f"Composant {famille_meaning.lower()} de type {sous_famille_meaning.get(sous_famille_code, sous_famille_code)}"
+            }
+        
+        # Ancien format : DOMAINE-ROUTE-ROUTING-TYPE-SEQUENCE (5 parties)
+        elif len(parts) == 5:
+            domain_code, route_code, routing_code, type_code, sequence = parts
 
-        # Mapping inverse pour les routings
-        routing_meaning = {}
-        for full_name, code in self.routing_mapping.items():
-            routing_meaning[code] = full_name
+            # Mapping inverse pour les domaines
+            domain_meaning = {
+                'ELEC': 'Électrique',
+                'MECA': 'Mécanique'
+            }.get(domain_code, domain_code)
 
-        # Mapping inverse pour les types
-        type_meaning = {}
-        for full_name, code in self.type_mapping.items():
-            type_meaning[code] = full_name
+            # Mapping inverse pour les routes
+            route_meaning = {}
+            for full_name, code in self.route_mapping.items():
+                route_meaning[code] = full_name
 
-        return {
-            'domaine_code': domain_code,
-            'domaine_nom': domain_meaning,
-            'route_code': route_code,
-            'route_nom': route_meaning.get(route_code, route_code),
-            'routing_code': routing_code,
-            'routing_nom': routing_meaning.get(routing_code, routing_code),
-            'type_code': type_code,
-            'type_nom': type_meaning.get(type_code, type_code),
-            'sequence': sequence
-        }
+            # Mapping inverse pour les routings
+            routing_meaning = {}
+            for full_name, code in self.routing_mapping.items():
+                routing_meaning[code] = full_name
+
+            # Mapping inverse pour les types
+            type_meaning = {}
+            for full_name, code in self.type_mapping.items():
+                type_meaning[code] = full_name
+
+            return {
+                'format': 'ancien',
+                'domaine_code': domain_code,
+                'domaine_nom': domain_meaning,
+                'route_code': route_code,
+                'route_nom': route_meaning.get(route_code, route_code),
+                'routing_code': routing_code,
+                'routing_nom': routing_meaning.get(routing_code, routing_code),
+                'type_code': type_code,
+                'type_nom': type_meaning.get(type_code, type_code),
+                'sequence': sequence
+            }
+        
+        # Format non reconnu
+        else:
+            return {
+                'format': 'invalide',
+                'erreur': f"Format SKU non reconnu: {len(parts)} parties au lieu de 3 (simplifié) ou 5 (ancien)"
+            }
 
     def get_process_description(self, domain: str, route: str, routing: str) -> str:
         """Obtenir une description du processus basé sur le domaine, route et routing"""

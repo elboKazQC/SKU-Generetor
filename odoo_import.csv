@@ -1,3 +1,0 @@
-default_code;name;description;categ_id;manufacturer_name;manufacturer_pname;x_domain;x_component_type;x_designator;x_quantity_bom;type;uom_id;uom_po_id;tracking;active;sale_ok;purchase_ok;standard_price;list_price
-ELEC-ELEC-STD-RESIST-AAAA;Résistance 100Ω;Résistance carbone 100Ω 1/4W;Autres;Vishay;CFR25J100R;ÉLECTRIQUE;RESIST;;10;product;1;1;none;True;True;True;0.0;0.0
-MECA-MECA-STD-VIS-AAAA;Vis CHC M6x20;Vis hexagonale M6x20;Autres;Unbrako;CHC_M6_20;MÉCANIQUE;VIS;;20;product;1;1;none;True;True;True;0.0;0.0
