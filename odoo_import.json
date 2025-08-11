@@ -1,0 +1,52 @@
+{
+  "model": "product.product",
+  "method": "create",
+  "data": [
+    {
+      "default_code": "ELEC-ELEC-STD-RESIST-AAAA",
+      "name": "Résistance 100Ω",
+      "description": "Résistance carbone 100Ω 1/4W",
+      "categ_id": "Autres",
+      "manufacturer_name": "Vishay",
+      "manufacturer_pname": "CFR25J100R",
+      "x_domain": "ÉLECTRIQUE",
+      "x_component_type": "RESIST",
+      "x_designator": "",
+      "x_quantity_bom": 10,
+      "type": "product",
+      "uom_id": 1,
+      "uom_po_id": 1,
+      "tracking": "none",
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "standard_price": 0.0,
+      "list_price": 0.0
+    },
+    {
+      "default_code": "MECA-MECA-STD-VIS-AAAA",
+      "name": "Vis CHC M6x20",
+      "description": "Vis hexagonale M6x20",
+      "categ_id": "Autres",
+      "manufacturer_name": "Unbrako",
+      "manufacturer_pname": "CHC_M6_20",
+      "x_domain": "MÉCANIQUE",
+      "x_component_type": "VIS",
+      "x_designator": "",
+      "x_quantity_bom": 20,
+      "type": "product",
+      "uom_id": 1,
+      "uom_po_id": 1,
+      "tracking": "none",
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "standard_price": 0.0,
+      "list_price": 0.0
+    }
+  ],
+  "context": {
+    "lang": "fr_FR",
+    "tz": "America/Toronto"
+  }
+}

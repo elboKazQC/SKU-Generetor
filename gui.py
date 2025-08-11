@@ -17,6 +17,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from sku_generator import SKUGenerator, Component
 from main import BOMProcessor
 from bom_analyzer import BOMComparator
+from component_validation_window import ComponentValidationWindow
+from odoo_integration import ODOOIntegration
 
 class SKUGeneratorGUI:
     """Interface graphique pour le générateur de SKU"""
@@ -30,6 +32,7 @@ class SKUGeneratorGUI:
         self.generator = SKUGenerator()
         self.processor = BOMProcessor(self.generator)
         self.comparator = BOMComparator(self.generator)
+        self.odoo_integration = ODOOIntegration()
 
         self.create_widgets()
         self.update_stats()
@@ -71,7 +74,9 @@ class SKUGeneratorGUI:
                   command=self.process_bom).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="🔄 Actualiser stats",
                   command=self.update_stats).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="🗑️ Effacer résultats",
+        ttk.Button(button_frame, text="� Export ODOO",
+                  command=self.export_odoo_template).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="�🗑️ Effacer résultats",
                   command=self.clear_results).pack(side=tk.LEFT)
 
         # Section recherche
@@ -329,6 +334,132 @@ class SKUGeneratorGUI:
                 self.log_info("Traitement en cours...")
 
                 # Traiter le fichier
+                # D'abord extraire tous les composants pour validation
+                self.log_info("Extraction des composants pour validation...")
+                components_by_domain = self.processor.extract_components_from_bom(file_path)
+
+                if not components_by_domain:
+                    self.log_error("Aucun composant valide trouvé dans le fichier")
+                    return
+
+                # Afficher la fenêtre de validation
+                self.progress.stop()
+                self.show_validation_window(components_by_domain, file_path)
+
+            except PermissionError:
+                self.log_error("Fichier en cours d'utilisation ou accès refusé")
+                self.log_info("💡 Fermez le fichier Excel et réessayez")
+            except Exception as e:
+                self.log_error(f"Erreur lors du traitement: {str(e)}")
+            finally:
+                self.progress.stop()
+
+        thread = threading.Thread(target=process_thread)
+        thread.daemon = True
+        thread.start()
+
+    def show_validation_window(self, components_by_domain, file_path):
+        """Afficher la fenêtre de validation des composants"""
+        def on_validation_complete(selected_components):
+            """Callback après validation des composants"""
+            self.process_validated_components(selected_components, file_path)
+
+        # Créer et afficher la fenêtre de validation
+        validation_window = ComponentValidationWindow(
+            self.root, 
+            components_by_domain, 
+            file_path, 
+            callback=on_validation_complete
+        )
+
+    def process_validated_components(self, selected_components, file_path):
+        """Traiter les composants validés et générer les SKU"""
+        def process_thread():
+            try:
+                self.progress.start()
+                
+                # En-tête principal
+                self.log_header(f"⚙️ GÉNÉRATION DES SKU")
+                self.log_info(f"Fichier: {Path(file_path).name}")
+
+                # Générer les SKU pour les composants sélectionnés
+                results = self.processor.generate_skus_for_selected_components(selected_components)
+
+                # Générer le nom de fichier de sortie
+                input_name = Path(file_path).stem
+                output_file = f"SKU_{input_name}.xlsx"
+
+                # Exporter les résultats
+                self.processor.export_results(results, output_file)
+                
+                # Export ODOO automatique
+                try:
+                    odoo_count, odoo_file = self.odoo_integration.export_to_odoo_csv(results, f"ODOO_{output_file}")
+                    self.log_info(f"📤 Export ODOO: {odoo_count} produits → {odoo_file}")
+                except Exception as e:
+                    self.log_error(f"Erreur export ODOO: {str(e)}")
+
+                # Afficher le résumé par domaine
+                self.log_section("RÉSULTATS DU TRAITEMENT")
+                total_components = 0
+
+                for domain, df in results.items():
+                    count = len(df)
+                    total_components += count
+
+                    self.log_info(f"🔧 {domain}: {count} composants traités")
+
+                self.log_success(f"✅ TRAITEMENT TERMINÉ: {total_components} composants")
+                self.log_info(f"📁 Fichier généré: {output_file}")
+
+                # Mettre à jour les statistiques
+                self.update_stats()
+
+            except Exception as e:
+                self.log_error(f"Erreur lors de la génération des SKU: {str(e)}")
+            finally:
+                self.progress.stop()
+
+        thread = threading.Thread(target=process_thread)
+        thread.daemon = True
+        thread.start()
+
+    def process_bom_old(self):
+        """Ancienne méthode de traitement BOM (pour référence)"""
+        file_path = filedialog.askopenfilename(
+            title="Sélectionner le fichier BOM à traiter",
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+        )
+
+        if not file_path:
+            return
+
+        def process_thread():
+            try:
+                self.progress.start()
+                self.clear_results()
+
+                # En-tête principal
+                self.log_header(f"⚙️ TRAITEMENT BOM: {Path(file_path).name}")
+
+                # Vérification préalable du fichier
+                self.log_info(f"Fichier: {file_path}")
+                self.log_info("Vérification d'accès au fichier...")
+
+                can_access, error_msg = self.check_file_access(file_path)
+                if not can_access:
+                    self.log_error(f"Impossible d'accéder au fichier: {error_msg}")
+                    self.log_info("💡 Solutions possibles:")
+                    self.log_info("   1. Fermez le fichier s'il est ouvert dans Excel")
+                    self.log_info("   2. Attendez que OneDrive finisse la synchronisation")
+                    self.log_info("   3. Copiez le fichier dans un autre dossier")
+                    self.log_info("   4. Vérifiez les permissions du fichier")
+                    return
+
+                self.log_success("Accès au fichier confirmé!")
+                self.log_info("Traitement en cours...")
+
+                # Traiter le fichier
                 results = self.processor.process_bom_file(file_path)
 
                 # Générer le nom de fichier de sortie
@@ -503,6 +634,32 @@ class SKUGeneratorGUI:
         thread = threading.Thread(target=search_thread)
         thread.daemon = True
         thread.start()
+
+    def export_odoo_template(self):
+        """Créer un template d'import pour ODOO"""
+        try:
+            template_file = self.odoo_integration.create_import_template()
+            
+            self.clear_results()
+            self.log_header("📤 TEMPLATE ODOO CRÉÉ")
+            self.log_success(f"Template généré: {template_file}")
+            self.log_info("📋 Le template contient:")
+            self.log_info("  • Feuille 'Exemples' avec des données d'exemple")
+            self.log_info("  • Feuille 'Import_ODOO' vide pour vos données")
+            self.log_info("  • Feuille 'Documentation' avec les descriptions")
+            self.log_info("")
+            self.log_info("🎯 Utilisation:")
+            self.log_info("  1. Remplissez la feuille 'Import_ODOO'")
+            self.log_info("  2. Importez dans ODOO via Inventaire > Produits")
+            self.log_info("  3. Utilisez le format CSV avec séparateur ';'")
+            
+            # Proposer d'ouvrir
+            if messagebox.askyesno("Template créé", 
+                                 f"Template ODOO créé avec succès!\n\nFichier: {template_file}\n\nVoulez-vous l'ouvrir?"):
+                os.startfile(template_file)
+                
+        except Exception as e:
+            self.log_error(f"Erreur lors de la création du template: {str(e)}")
 
 def main():
     """Fonction principale"""

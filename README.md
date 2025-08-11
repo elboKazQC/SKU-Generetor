@@ -17,6 +17,8 @@ Application Python complète pour générer automatiquement des **codes SKU indu
 - **Traitement en Temps Réel** : Barre de progression et feedback visuel
 - **Recherche Avancée** : Retrouver n'importe quel composant par son SKU
 - **Analyse Préalable** : Prévisualisation avant traitement complet
+- **Validation des Composants** : Fenêtre de contrôle avant génération des SKU
+- **Sélection Interactive** : Cocher/décocher les composants à traiter
 
 ### 🎯 **Gestion des Données**
 - **Base de Données SQLite** : Stockage local sécurisé et performant
@@ -72,8 +74,15 @@ sqlite3 (inclus avec Python)
 
 1. **Cliquez sur "⚙️ Traiter et générer SKU"**
 2. **Sélectionnez le fichier BOM à traiter**
-3. **Le système génère** :
-   - Les SKU pour tous les nouveaux composants
+3. **Fenêtre de validation** s'ouvre automatiquement :
+   - Tous les composants détectés sont affichés par onglets (ÉLEC/MÉCA)
+   - Composants cochés par défaut
+   - Possibilité de décocher les composants non désirés
+   - Voir les détails de chaque composant (double-clic)
+   - Statistiques en temps réel des sélections
+4. **Cliquez sur "Générer les SKU"** après validation
+5. **Le système génère** :
+   - Les SKU pour les composants sélectionnés uniquement
    - Un fichier Excel enrichi avec les codes
    - La mise à jour de la base de données
 
@@ -124,9 +133,11 @@ SKU-Generetor/
 ├── 🔧 sku_generator.py          # Moteur de génération SKU
 ├── 📊 main.py                   # Processeur de fichiers BOM
 ├── 🔍 bom_analyzer.py           # Analyseur et comparateur
-├── 💾 components.db             # Base de données SQLite
+├── �️ component_validation_window.py  # Fenêtre de validation des composants
+├── �💾 components.db             # Base de données SQLite
 ├── 📋 requirements.txt          # Dépendances Python
 ├── 📖 README.md                 # Cette documentation
+├── 📖 FENETRE_VALIDATION.md     # Documentation fenêtre de validation
 └── 📁 SKU_*.xlsx               # Fichiers de sortie générés
 ```
 
@@ -138,7 +149,7 @@ Modifiez le fichier `sku_generator.py` pour ajouter de nouveaux types :
 ```python
 type_mapping = {
     "Pièces Pliées": "PLIE",
-    "Pièces Usinées": "USIN", 
+    "Pièces Usinées": "USIN",
     "Votre Nouveau Type": "NOUV",
     # Ajoutez vos types personnalisés
 }
@@ -255,7 +266,15 @@ Ce projet est développé spécifiquement pour Noovelia. Tous droits réservés.
 
 ## 🔄 Historique des Versions
 
-### v2.2 - Codes Étendus Ultra-Lisibles (Actuel)
+### v2.3 - Validation Interactive des Composants (Actuel)
+- ✅ Fenêtre de validation avant génération des SKU
+- ✅ Sélection/décocher interactive des composants
+- ✅ Aperçu complet par domaine (ELEC/MECA)
+- ✅ Statistiques en temps réel des sélections
+- ✅ Contrôle utilisateur total sur les composants traités
+- ✅ Évite la génération de SKU non désirés
+
+### v2.2 - Codes Étendus Ultra-Lisibles
 - ✅ Codes français 5-6 lettres (PLIAGE, USINER, VISSER, etc.)
 - ✅ Instructions d'action intégrées dans le SKU
 - ✅ Compréhension immédiate pour les opérateurs

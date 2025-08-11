@@ -13,9 +13,9 @@ def test_component_validation():
     """Test de la validation des composants"""
     print("🧪 TEST DE VALIDATION DES COMPOSANTS")
     print("=" * 50)
-    
+
     generator = SKUGenerator()
-    
+
     # Test 1: Composant valide
     print("\n1. ✅ Test composant valide")
     valid_component = Component(
@@ -26,13 +26,13 @@ def test_component_validation():
         route="",
         routing=""
     )
-    
+
     try:
         sku = generator.generate_sku(valid_component)
         print(f"   SKU généré: {sku}")
     except Exception as e:
         print(f"   ❌ Erreur: {e}")
-    
+
     # Test 2: Nom vide
     print("\n2. ❌ Test nom vide")
     empty_name_component = Component(
@@ -43,7 +43,7 @@ def test_component_validation():
         route="",
         routing=""
     )
-    
+
     try:
         sku = generator.generate_sku(empty_name_component)
         print(f"   ⚠️ SKU créé malgré nom vide: {sku}")
@@ -51,7 +51,7 @@ def test_component_validation():
         print(f"   ✅ Composant rejeté correctement: {e}")
     except Exception as e:
         print(f"   ❌ Erreur inattendue: {e}")
-    
+
     # Test 3: Nom invalide (nan)
     print("\n3. ❌ Test nom 'nan'")
     nan_component = Component(
@@ -62,13 +62,13 @@ def test_component_validation():
         route="",
         routing=""
     )
-    
+
     try:
         sku = generator.generate_sku(nan_component)
         print(f"   ⚠️ SKU créé malgré nom 'nan': {sku}")
     except ValueError as e:
         print(f"   ✅ Composant rejeté correctement: {e}")
-    
+
     # Test 4: Domaine invalide
     print("\n4. ❌ Test domaine invalide")
     invalid_domain_component = Component(
@@ -79,13 +79,13 @@ def test_component_validation():
         route="",
         routing=""
     )
-    
+
     try:
         sku = generator.generate_sku(invalid_domain_component)
         print(f"   ⚠️ SKU créé malgré domaine invalide: {sku}")
     except ValueError as e:
         print(f"   ✅ Composant rejeté correctement: {e}")
-    
+
     # Test 5: Type de composant vide
     print("\n5. ❌ Test type composant vide")
     empty_type_component = Component(
@@ -96,13 +96,13 @@ def test_component_validation():
         route="",
         routing=""
     )
-    
+
     try:
         sku = generator.generate_sku(empty_type_component)
         print(f"   ⚠️ SKU créé malgré type vide: {sku}")
     except ValueError as e:
         print(f"   ✅ Composant rejeté correctement: {e}")
-    
+
     # Test 6: Description vide (doit être accepté mais remplacé)
     print("\n6. ⚠️ Test description vide (doit être accepté)")
     empty_desc_component = Component(
@@ -113,13 +113,13 @@ def test_component_validation():
         route="",
         routing=""
     )
-    
+
     try:
         sku = generator.generate_sku(empty_desc_component)
         print(f"   ✅ SKU généré avec description par défaut: {sku}")
     except Exception as e:
         print(f"   ❌ Erreur inattendue: {e}")
-    
+
     # Test 7: Espaces uniquement dans le nom
     print("\n7. ❌ Test nom avec espaces uniquement")
     spaces_component = Component(
@@ -130,13 +130,13 @@ def test_component_validation():
         route="",
         routing=""
     )
-    
+
     try:
         sku = generator.generate_sku(spaces_component)
         print(f"   ⚠️ SKU créé malgré nom avec espaces: {sku}")
     except ValueError as e:
         print(f"   ✅ Composant rejeté correctement: {e}")
-    
+
     print("\n" + "=" * 50)
     print("🎯 TEST TERMINÉ")
     print("✅ Les composants invalides doivent être rejetés")

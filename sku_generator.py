@@ -41,7 +41,7 @@ class SKUGenerator:
         # Alphabet SKU industriel (sans caractères ambigus)
         # Supprime: I, L, O, U, V, 0, 1, 9 pour éviter les confusions
         self.sku_alphabet = "ABCDEFGHJKMNPQRSTWXYZ23456789"
-        
+
         # Mapping des routes et routings basé sur vos données
         self.route_mapping = {
             # Routes électriques
@@ -87,7 +87,7 @@ class SKUGenerator:
         self.type_mapping = {
             # Types électriques (lisibles en français - 5-6 lettres)
             "Résistances": "RESIST",
-            "Condensateurs": "CONDEN", 
+            "Condensateurs": "CONDEN",
             "Inductances": "INDUCT",
             "Diodes": "DIODES",
             "Transistors": "TRANSI",
@@ -100,11 +100,11 @@ class SKUGenerator:
             "Broches": "BROCHE",
             "Fil": "FILAGE",
             "Boitiers": "BOITIE",
-            
+
             # Types mécaniques optimisés (action + matériau/finition optionnels)
             "Pièces Pliées": "PLIAGE",
             "PIÈCES PLIÉES": "PLIAGE",
-            "Pièces Usinées": "USINER", 
+            "Pièces Usinées": "USINER",
             "PIÈCES USINÉES": "USINER",
             "Pièces Découpées": "DECOUP",
             "PIÈCES DÉCOUPÉES LASER": "DECOUP",
@@ -174,38 +174,38 @@ class SKUGenerator:
     def normalize_text(self, text: str, max_length: int = 6) -> str:
         """Normalise le texte pour le SKU hybride (lisible mais sécurisé) - 5-6 lettres"""
         import unicodedata
-        
+
         if not text:
             return "UNKN"[:max_length]
-        
+
         # Pour les types connus, utiliser directement le mapping français
         text_clean = text.upper().replace(' ', '').replace('È', 'E').replace('É', 'E')
         for french_name, code in self.type_mapping.items():
             french_clean = french_name.upper().replace(' ', '').replace('È', 'E').replace('É', 'E')
             if french_clean in text_clean or text_clean in french_clean:
                 return code[:max_length]
-        
+
         # Supprimer les accents et diacritiques
         text = unicodedata.normalize('NFD', text)
         text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
-        
+
         # Convertir en majuscules et garder seulement alphanumériques
         text = ''.join(char.upper() for char in text if char.isalnum())
-        
+
         # Remplacer seulement les caractères vraiment ambigus pour la lisibilité
         replacements = {
             '0': '2',   # 0 -> 2 (éviter confusion avec O)
             '1': '3',   # 1 -> 3 (éviter confusion avec I/l)
             '9': '8',   # 9 -> 8 (éviter confusion avec g)
         }
-        
+
         for old, new in replacements.items():
             text = text.replace(old, new)
-        
+
         # Sinon, extraire intelligemment en gardant la lisibilité
         if len(text) <= max_length:
             return text[:max_length]
-        
+
         # Stratégie : premiers caractères de chaque mot important
         words = text.split()
         if len(words) > 1:
@@ -213,16 +213,16 @@ class SKUGenerator:
             result = ''.join(word[0] for word in words if len(word) > 2)[:max_length]
             if len(result) >= max_length:
                 return result[:max_length]
-        
+
         # Sinon priorité aux consonnes pour la lisibilité
         consonants = ''.join(c for c in text if c not in 'AEIUY')
         if len(consonants) >= max_length:
             return consonants[:max_length]
-        
+
         # Compléter avec des voyelles si nécessaire
         vowels = ''.join(c for c in text if c in 'AEIUY')
         result = consonants + vowels
-        
+
         return result[:max_length].ljust(max_length, 'X')
 
     def get_route_code(self, component_type: str, domain: str) -> str:
@@ -299,22 +299,22 @@ class SKUGenerator:
         # Convertir en base avec l'alphabet industriel (28 caractères)
         alphabet = self.sku_alphabet
         base = len(alphabet)
-        
+
         if sequence == 0:
             return "2222"  # Pas de zéro, commence à 2222
-        
+
         # Ajuster la séquence pour commencer à 1
         sequence_adjusted = sequence - 1
-        
+
         # Conversion en base 28 (alphabet industriel)
         result = ""
         temp = sequence_adjusted
-        
+
         # Générer 4 caractères
         for _ in range(4):
             result = alphabet[temp % base] + result
             temp //= base
-        
+
         return result
 
     def optimize_sku_format(self, domain: str, route_code: str, routing_code: str, type_code: str) -> tuple:
@@ -322,7 +322,7 @@ class SKUGenerator:
         Optimise le format SKU pour éviter les redondances
         Retourne (route_optimized, routing_optimized, type_optimized)
         """
-        
+
         # Si route et routing sont identiques, simplifier
         if route_code == routing_code:
             # Cas 1: Garder seulement le routing si plus spécifique
@@ -330,28 +330,28 @@ class SKUGenerator:
                 return "STD", routing_code, type_code
             else:
                 return route_code, "STD", type_code
-        
+
         # Si le type contient déjà l'information de route/routing, simplifier
         if type_code in route_code or route_code in type_code:
             return "STD", routing_code, type_code
-        
+
         if type_code in routing_code or routing_code in type_code:
             return route_code, "STD", type_code
-            
+
         # Cas spéciaux pour éviter la redondance sémantique
         redundant_pairs = {
             ("BOLT", "BOLT"): ("MECH", "BOLT"),
-            ("BEND", "BEND"): ("MECH", "BEND"), 
+            ("BEND", "BEND"): ("MECH", "BEND"),
             ("LASER", "CUT"): ("LASER", "STD"),
             ("CUT", "LASER"): ("LASER", "STD"),
             ("ASS", "ASM"): ("ASS", "STD"),
             ("ASM", "ASS"): ("ASM", "STD")
         }
-        
+
         pair_key = (route_code, routing_code)
         if pair_key in redundant_pairs:
             return redundant_pairs[pair_key][0], redundant_pairs[pair_key][1], type_code
-            
+
         # Pas de redondance détectée, garder tel quel
         return route_code, routing_code, type_code
 
@@ -364,30 +364,30 @@ class SKUGenerator:
         if not component.name or not component.name.strip():
             logger.warning(f"Composant rejeté: nom vide ou manquant")
             return False
-            
+
         # Vérifier que le nom n'est pas un placeholder générique
         invalid_names = ['nan', 'none', 'null', '', '(vide)', 'empty', 'unnamed']
         name_lower = component.name.lower().strip()
         if name_lower in invalid_names:
             logger.warning(f"Composant rejeté: nom invalide '{component.name}'")
             return False
-            
+
         # Vérifier que la description n'est pas vide (peut être moins strict)
         if not component.description or not component.description.strip():
             logger.warning(f"Composant '{component.name}': description vide")
             # On peut permettre une description vide mais on l'indique
             component.description = "Description non fournie"
-            
+
         # Vérifier que le domaine est valide
         if not component.domain or component.domain not in ['ELEC', 'MECA']:
             logger.warning(f"Composant '{component.name}': domaine invalide '{component.domain}'")
             return False
-            
+
         # Vérifier que le type de composant n'est pas vide
         if not component.component_type or not component.component_type.strip():
             logger.warning(f"Composant '{component.name}': type de composant manquant")
             return False
-            
+
         # Vérifier que le type n'est pas un placeholder
         type_lower = component.component_type.lower().strip()
         if type_lower in invalid_names:
@@ -396,9 +396,15 @@ class SKUGenerator:
 
         return True
 
+    def validate_component(self, component: Component) -> bool:
+        """
+        Méthode publique pour valider un composant
+        """
+        return self._validate_component(component)
+
     def generate_sku(self, component: Component) -> str:
         """Génère un SKU optimisé pour un composant"""
-        
+
         # Validation des champs obligatoires pour éviter les SKU vides
         if not self._validate_component(component):
             logger.warning(f"Composant invalide ignoré: {component.name} - {component.description}")

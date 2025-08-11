@@ -7,6 +7,7 @@ import pandas as pd
 import sys
 from pathlib import Path
 from sku_generator import SKUGenerator, Component
+from typing import Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class BOMProcessor:
                     'Designator': component.designator,
                     'Domain': 'ÉLECTRIQUE'
                 })
-            
+
             except ValueError as e:
                 skipped_count += 1
                 logger.warning(f"Composant électrique ignoré (ligne {line_num}): {e}")
@@ -64,6 +65,173 @@ class BOMProcessor:
             logger.info(f"🚨 {skipped_count} composants électriques ignorés (items vides ou invalides)")
 
         return pd.DataFrame(results)
+
+    def extract_electrical_components(self, df: pd.DataFrame) -> List[Component]:
+        """Extrait les composants électriques sans générer les SKU"""
+        components = []
+        skipped_count = 0
+
+        for line_num, (idx, row) in enumerate(df.iterrows(), start=2):
+            try:
+                component = Component(
+                    name=str(row.get('Name', '')),
+                    description=str(row.get('Description', '')),
+                    domain="ELEC",
+                    component_type=str(row.get('ComponentType', '')),
+                    route="",  # Sera calculé automatiquement
+                    routing="",  # Sera calculé automatiquement
+                    manufacturer=str(row.get('Manufacturer', '')),
+                    manufacturer_part=str(row.get('Manufacturer PN', '')),
+                    quantity=row.get('Quantity'),
+                    designator=str(row.get('Designator', ''))
+                )
+
+                # Valider le composant sans générer le SKU
+                if self.sku_generator.validate_component(component):
+                    components.append(component)
+                else:
+                    skipped_count += 1
+            
+            except Exception as e:
+                skipped_count += 1
+                logger.warning(f"Composant électrique ignoré (ligne {line_num}): {e}")
+                continue
+
+        if skipped_count > 0:
+            logger.info(f"🚨 {skipped_count} composants électriques ignorés (items vides ou invalides)")
+
+        return components
+
+    def extract_mechanical_components(self, df: pd.DataFrame) -> List[Component]:
+        """Extrait les composants mécaniques sans générer les SKU"""
+        components = []
+        skipped_count = 0
+
+        for line_num, (idx, row) in enumerate(df.iterrows(), start=2):
+            try:
+                component = Component(
+                    name=str(row.get('No. de pièce', '')),
+                    description=str(row.get('Description Française', '')),
+                    domain="MECA",
+                    component_type=str(row.get('Type', '')),
+                    route="",  # Sera calculé automatiquement
+                    routing="",  # Sera calculé automatiquement
+                    manufacturer=str(row.get('Manufacturier', '')),
+                    manufacturer_part=str(row.get('No. de pièce', '')),
+                    quantity=row.get('QTE TOTALE')
+                )
+
+                # Valider le composant sans générer le SKU
+                if self.sku_generator.validate_component(component):
+                    components.append(component)
+                else:
+                    skipped_count += 1
+
+            except Exception as e:
+                skipped_count += 1
+                logger.warning(f"Composant mécanique ignoré (ligne {line_num}): {e}")
+                continue
+
+        if skipped_count > 0:
+            logger.info(f"🚨 {skipped_count} composants mécaniques ignorés (items vides ou invalides)")
+
+        return components
+
+    def generate_skus_for_selected_components(self, components_by_domain: Dict[str, List[Component]]) -> dict:
+        """Génère les SKU pour les composants sélectionnés"""
+        results = {}
+
+        for domain, components in components_by_domain.items():
+            if domain == "ELEC":
+                results["Électrique"] = self._process_selected_electrical_components(components)
+            elif domain == "MECA":
+                results["Mécanique"] = self._process_selected_mechanical_components(components)
+
+        return results
+
+    def _process_selected_electrical_components(self, components: List[Component]) -> pd.DataFrame:
+        """Traite les composants électriques sélectionnés"""
+        results = []
+
+        for component in components:
+            try:
+                sku = self.sku_generator.generate_sku(component)
+
+                results.append({
+                    'SKU': sku,
+                    'Name': component.name,
+                    'Description': component.description,
+                    'ComponentType': component.component_type,
+                    'Manufacturer': component.manufacturer,
+                    'Manufacturer_PN': component.manufacturer_part,
+                    'Quantity': component.quantity,
+                    'Designator': component.designator,
+                    'Domain': 'ÉLECTRIQUE'
+                })
+            
+            except Exception as e:
+                logger.error(f"Erreur lors de la génération du SKU pour {component.name}: {e}")
+                continue
+
+        return pd.DataFrame(results)
+
+    def _process_selected_mechanical_components(self, components: List[Component]) -> pd.DataFrame:
+        """Traite les composants mécaniques sélectionnés"""
+        results = []
+
+        for component in components:
+            try:
+                sku = self.sku_generator.generate_sku(component)
+
+                results.append({
+                    'SKU': sku,
+                    'Name': component.name,
+                    'Description': component.description,
+                    'ComponentType': component.component_type,
+                    'Manufacturer': component.manufacturer,
+                    'Manufacturer_PN': component.manufacturer_part,
+                    'Quantity': component.quantity,
+                    'Domain': 'MÉCANIQUE'
+                })
+
+            except Exception as e:
+                logger.error(f"Erreur lors de la génération du SKU pour {component.name}: {e}")
+                continue
+
+        return pd.DataFrame(results)
+
+    def extract_components_from_bom(self, file_path: str) -> Dict[str, List[Component]]:
+        """Extrait tous les composants d'un fichier BOM sans générer les SKU"""
+        logger.info(f"Extraction des composants du fichier: {file_path}")
+
+        try:
+            # Lire toutes les feuilles
+            excel_data = pd.read_excel(file_path, sheet_name=None)
+
+            components_by_domain = {}
+
+            # Extraire les composants électriques
+            if 'BOM Électrique' in excel_data:
+                logger.info("Extraction des composants électriques...")
+                elec_components = self.extract_electrical_components(excel_data['BOM Électrique'])
+                if elec_components:
+                    components_by_domain['ELEC'] = elec_components
+
+            # Extraire les composants mécaniques
+            if 'BOM Mécanique' in excel_data:
+                logger.info("Extraction des composants mécaniques...")
+                meca_components = self.extract_mechanical_components(excel_data['BOM Mécanique'])
+                if meca_components:
+                    components_by_domain['MECA'] = meca_components
+
+            total_components = sum(len(components) for components in components_by_domain.values())
+            logger.info(f"Total des composants valides extraits: {total_components}")
+
+            return components_by_domain
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'extraction des composants: {e}")
+            raise
 
     def process_mechanical_bom(self, df: pd.DataFrame) -> pd.DataFrame:
         """Traite le BOM mécanique"""
@@ -96,7 +264,7 @@ class BOMProcessor:
                     'Quantity': component.quantity,
                     'Domain': 'MÉCANIQUE'
                 })
-            
+
             except ValueError as e:
                 skipped_count += 1
                 logger.warning(f"Composant mécanique ignoré (ligne {line_num}): {e}")

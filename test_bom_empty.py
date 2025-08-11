@@ -15,7 +15,7 @@ def test_bom_with_empty_entries():
     """Test avec des entrées vides dans un BOM simulé"""
     print("🧪 TEST BOM AVEC ENTRÉES VIDES")
     print("=" * 50)
-    
+
     # Créer un DataFrame simulé avec des entrées problématiques
     electrical_data = {
         'Name': [
@@ -61,31 +61,31 @@ def test_bom_with_empty_entries():
         'Quantity': [1, 1, 1, 2, 1, 5],
         'Designator': ['R1', 'R2', 'R3', 'C1', 'D1', 'D2']
     }
-    
+
     df_electrical = pd.DataFrame(electrical_data)
-    
+
     # Créer le processeur
     generator = SKUGenerator()
     processor = BOMProcessor(generator)
-    
+
     print(f"\n📊 BOM électrique simulé ({len(df_electrical)} entrées):")
-    for i, row in df_electrical.iterrows():
+    for line_num, (idx, row) in enumerate(df_electrical.iterrows(), start=2):
         status = "❌" if not row['Name'].strip() or row['Name'] == 'nan' or not row['ComponentType'].strip() else "✅"
-        print(f"  {status} Ligne {i+2}: '{row['Name']}' - {row['ComponentType']}")
-    
+        print(f"  {status} Ligne {line_num}: '{row['Name']}' - {row['ComponentType']}")
+
     print(f"\n⚙️ Traitement du BOM électrique...")
     result_df = processor.process_electrical_bom(df_electrical)
-    
+
     print(f"\n📈 Résultats:")
     print(f"  - Entrées originales: {len(df_electrical)}")
     print(f"  - SKU générés: {len(result_df)}")
     print(f"  - Entrées ignorées: {len(df_electrical) - len(result_df)}")
-    
+
     if len(result_df) > 0:
         print(f"\n✅ SKU générés avec succès:")
         for _, row in result_df.iterrows():
             print(f"  - {row['SKU']}: {row['Name']}")
-    
+
     print("\n" + "=" * 50)
     print("🎯 RÉSULTAT: Les entrées vides ont été correctement filtrées!")
 
