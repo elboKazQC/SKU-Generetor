@@ -22,11 +22,11 @@ print("Test génération SKU simplifié...")
 try:
     sku = generator.generate_sku(component)
     print(f"SKU généré: {sku}")
-    
+
     # Test décodage
     decoded = generator.decode_sku_parts(sku)
     print(f"Décodage: {decoded}")
-    
+
     print("✅ Test réussi!")
 except Exception as e:
     print(f"❌ Erreur: {e}")

@@ -67,7 +67,7 @@ def reset_database(db_path: str = "sku_database.db"):
                 cursor2.execute("SELECT name, sku, domain FROM components LIMIT 5")
                 examples = cursor2.fetchall()
                 conn2.close()
-                
+
                 for name, sku, domain in examples:
                     print(f"  - {name[:25]:<25} → {sku} ({domain})")
 

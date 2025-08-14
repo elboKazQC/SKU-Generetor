@@ -108,7 +108,7 @@ MECA-VISSER-AAAA
 
 ### Exemples Réels Simplifiés
 - **ELEC-RESIST-AAAA** : Résistance électrique (à souder)
-- **MECA-VISSER-AAAB** : Boulonnerie mécanique (à visser)  
+- **MECA-VISSER-AAAB** : Boulonnerie mécanique (à visser)
 - **ELEC-CONNEC-AAAC** : Connecteur électrique (à connecter)
 - **MECA-PLIAGE-AAAD** : Pièce mécanique pliée (à plier)
 
@@ -278,7 +278,7 @@ Ce projet est développé spécifiquement pour Noovelia. Tous droits réservés.
 
 ## 🔄 Historique des Versions
 
-### v2.4 - SKU Simplifiés (Actuel) 
+### v2.4 - SKU Simplifiés (Actuel)
 - ✅ **Nouveau format ultra-simplifié** : `FAMILLE-SOUS_FAMILLE-SEQUENCE`
 - ✅ **40% de réduction** de la longueur des SKU
 - ✅ **Rétrocompatibilité totale** avec l'ancien format

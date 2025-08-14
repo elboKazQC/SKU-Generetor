@@ -10,6 +10,7 @@ from pathlib import Path
 import threading
 import sys
 import os
+from queue import Queue, Empty
 
 # Ajouter le répertoire courant au path pour importer nos modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -34,8 +35,17 @@ class SKUGeneratorGUI:
         self.comparator = BOMComparator(self.generator)
         self.odoo_integration = ODOOIntegration()
 
+        # File dialog: remember last directory (session only)
+        self._last_dir = os.getcwd()
+
+        # Thread-safe logging queue
+        self._log_queue = Queue()
+
         self.create_widgets()
         self.update_stats()
+
+        # Start log queue processor on UI thread
+        self.root.after(100, self._process_log_queue)
 
     def create_widgets(self):
         """Créer l'interface utilisateur"""
@@ -45,9 +55,9 @@ class SKUGeneratorGUI:
         title_frame.pack(fill=tk.X, padx=10, pady=5)
 
         ttk.Label(title_frame, text="Générateur de SKU Industriel",
-                 font=("Arial", 16, "bold")).pack()
+                  font=("Arial", 16, "bold")).pack()
         ttk.Label(title_frame, text="Avec logique de Route et Routing",
-                 font=("Arial", 10)).pack()
+                  font=("Arial", 10)).pack()
 
         # Frame principal
         main_frame = ttk.Frame(self.root)
@@ -69,15 +79,16 @@ class SKUGeneratorGUI:
         button_frame.pack(fill=tk.X, padx=10, pady=5)
 
         ttk.Button(button_frame, text="📁 Analyser nouveau BOM",
-                  command=self.analyze_bom).pack(side=tk.LEFT, padx=(0, 5))
+                   command=self.analyze_bom).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="⚙️ Traiter et générer SKU",
-                  command=self.process_bom).pack(side=tk.LEFT, padx=(0, 5))
+                   command=self.process_bom).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="🔄 Actualiser stats",
-                  command=self.update_stats).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="� Export ODOO",
-                  command=self.export_odoo_template).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="�🗑️ Effacer résultats",
-                  command=self.clear_results).pack(side=tk.LEFT)
+                   command=self.update_stats).pack(side=tk.LEFT, padx=(0, 5))
+        # Fix label characters for Windows fonts
+        ttk.Button(button_frame, text="📤 Export ODOO",
+                   command=self.export_odoo_template).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="🗑️ Effacer résultats",
+                   command=self.clear_results).pack(side=tk.LEFT)
 
         # Section recherche
         search_frame = ttk.LabelFrame(main_frame, text="Recherche par SKU")
@@ -94,15 +105,15 @@ class SKUGeneratorGUI:
         self.search_entry.bind('<Return>', lambda e: self.search_sku())
 
         ttk.Button(search_input_frame, text="🔍 Rechercher",
-                  command=self.search_sku).pack(side=tk.LEFT, padx=(5, 0))
+                   command=self.search_sku).pack(side=tk.LEFT, padx=(5, 0))
 
         # Zone de résultats
         results_frame = ttk.LabelFrame(main_frame, text="Résultats")
         results_frame.pack(fill=tk.BOTH, expand=True)
 
         self.results_text = scrolledtext.ScrolledText(results_frame, height=15,
-                                                     font=("Consolas", 10),
-                                                     wrap=tk.WORD)
+                                                      font=("Consolas", 10),
+                                                      wrap=tk.WORD)
         self.results_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
         # Configuration des couleurs pour améliorer la lisibilité
@@ -138,49 +149,61 @@ class SKUGeneratorGUI:
                                        font=("Consolas", 10))
 
     def log_header(self, title):
-        """Ajouter un en-tête avec séparateur"""
+        """Ajouter un en-tête avec séparateur (thread-safe)"""
         separator = "=" * 60
-        self.results_text.insert(tk.END, f"\n{separator}\n", "separator")
-        self.results_text.insert(tk.END, f"{title}\n", "header")
-        self.results_text.insert(tk.END, f"{separator}\n", "separator")
-        self.results_text.see(tk.END)
-        self.root.update()
+        self._enqueue_log(f"\n{separator}\n", "separator")
+        self._enqueue_log(f"{title}\n", "header")
+        self._enqueue_log(f"{separator}\n", "separator")
 
     def log_section(self, title):
-        """Ajouter une section avec formatage"""
-        self.results_text.insert(tk.END, f"\n📋 {title}\n", "highlight")
-        self.results_text.insert(tk.END, "-" * 40 + "\n", "separator")
-        self.results_text.see(tk.END)
-        self.root.update()
+        """Ajouter une section avec formatage (thread-safe)"""
+        self._enqueue_log(f"\n📋 {title}\n", "highlight")
+        self._enqueue_log("-" * 40 + "\n", "separator")
 
     def log_success(self, message):
-        """Ajouter un message de succès"""
-        self.results_text.insert(tk.END, f"✅ {message}\n", "success")
-        self.results_text.see(tk.END)
-        self.root.update()
+        """Ajouter un message de succès (thread-safe)"""
+        self._enqueue_log(f"✅ {message}\n", "success")
 
     def log_error(self, message):
-        """Ajouter un message d'erreur"""
-        self.results_text.insert(tk.END, f"❌ {message}\n", "error")
-        self.results_text.see(tk.END)
-        self.root.update()
+        """Ajouter un message d'erreur (thread-safe)"""
+        self._enqueue_log(f"❌ {message}\n", "error")
 
     def log_info(self, message):
-        """Ajouter un message d'information"""
-        self.results_text.insert(tk.END, f"ℹ️  {message}\n", "info")
-        self.results_text.see(tk.END)
-        self.root.update()
+        """Ajouter un message d'information (thread-safe)"""
+        self._enqueue_log(f"ℹ️  {message}\n", "info")
 
     def log_sku_example(self, name, sku):
-        """Afficher un exemple de SKU avec formatage spécial"""
-        self.results_text.insert(tk.END, f"    • {name:<25} → ", "info")
-        self.results_text.insert(tk.END, f"{sku}\n", "sku")
-        self.results_text.see(tk.END)
-        self.root.update()
+        """Afficher un exemple de SKU (thread-safe)"""
+        self._enqueue_log(f"    • {name:<25} → ", "info")
+        self._enqueue_log(f"{sku}\n", "sku")
 
     def clear_results(self):
-        """Effacer la zone de résultats"""
-        self.results_text.delete(1.0, tk.END)
+        """Effacer la zone de résultats (thread-safe)"""
+        self.root.after(0, lambda: self.results_text.delete(1.0, tk.END))
+
+    # ---------- Thread-safe helpers ----------
+    def _enqueue_log(self, text: str, tag: str = "info"):
+        """Place a log message into the queue to be processed on UI thread."""
+        self._log_queue.put((text, tag))
+
+    def _process_log_queue(self):
+        """Flush queued log messages on the UI thread."""
+        try:
+            while True:
+                text, tag = self._log_queue.get_nowait()
+                self.results_text.insert(tk.END, text, tag)
+                self.results_text.see(tk.END)
+        except Empty:
+            pass
+        finally:
+            # keep polling
+            self.root.after(100, self._process_log_queue)
+
+    def _progress_start(self):
+        self.root.after(0, self.progress.start)
+
+    def _progress_stop(self):
+        self.root.after(0, self.progress.stop)
 
     def check_file_access(self, file_path):
         """Vérifier l'accès au fichier avant traitement"""
@@ -210,24 +233,28 @@ class SKUGeneratorGUI:
                 domain_stats = [f"{domain}: {count}" for domain, count in stats['par_domaine'].items()]
                 stats_text += " | ".join(domain_stats)
 
-            self.stats_text.config(text=stats_text)
+            # UI update on main thread
+            self.root.after(0, lambda: self.stats_text.config(text=stats_text))
 
         except Exception as e:
-            self.stats_text.config(text=f"❌ Erreur: {str(e)}")
+            self.root.after(0, lambda: self.stats_text.config(text=f"❌ Erreur: {str(e)}"))
 
     def analyze_bom(self):
         """Analyser un nouveau BOM"""
         file_path = filedialog.askopenfilename(
             title="Sélectionner le fichier BOM",
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
+            initialdir=self._last_dir,
         )
 
         if not file_path:
             return
+        # remember last dir
+        self._last_dir = os.path.dirname(file_path)
 
         def analyze_thread():
             try:
-                self.progress.start()
+                self._progress_start()
                 self.clear_results()
 
                 # En-tête principal
@@ -292,7 +319,7 @@ class SKUGeneratorGUI:
                 self.log_error(f"Erreur lors de l'analyse: {str(e)}")
                 self.log_info("💡 Vérifiez le format du fichier Excel")
             finally:
-                self.progress.stop()
+                self._progress_stop()
 
         thread = threading.Thread(target=analyze_thread)
         thread.daemon = True
@@ -302,15 +329,17 @@ class SKUGeneratorGUI:
         """Traiter un BOM et générer les SKU"""
         file_path = filedialog.askopenfilename(
             title="Sélectionner le fichier BOM à traiter",
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
+            initialdir=self._last_dir,
         )
 
         if not file_path:
             return
+        self._last_dir = os.path.dirname(file_path)
 
         def process_thread():
             try:
-                self.progress.start()
+                self._progress_start()
                 self.clear_results()
 
                 # En-tête principal
@@ -343,7 +372,7 @@ class SKUGeneratorGUI:
                     return
 
                 # Afficher la fenêtre de validation
-                self.progress.stop()
+                self._progress_stop()
                 self.show_validation_window(components_by_domain, file_path)
 
             except PermissionError:
@@ -352,7 +381,7 @@ class SKUGeneratorGUI:
             except Exception as e:
                 self.log_error(f"Erreur lors du traitement: {str(e)}")
             finally:
-                self.progress.stop()
+                self._progress_stop()
 
         thread = threading.Thread(target=process_thread)
         thread.daemon = True
@@ -376,7 +405,7 @@ class SKUGeneratorGUI:
         """Traiter les composants validés et générer les SKU"""
         def process_thread():
             try:
-                self.progress.start()
+                self._progress_start()
 
                 # En-tête principal
                 self.log_header(f"⚙️ GÉNÉRATION DES SKU")
@@ -415,10 +444,22 @@ class SKUGeneratorGUI:
                 # Mettre à jour les statistiques
                 self.update_stats()
 
+                # Proposer d'ouvrir le fichier généré
+                def _ask_open():
+                    if messagebox.askyesno(
+                        "Traitement terminé",
+                        f"Le traitement est terminé avec succès!\n\n📊 {total_components} composants traités\n💾 Fichier: {output_file}\n\nVoulez-vous ouvrir le fichier de résultats?"
+                    ):
+                        try:
+                            os.startfile(output_file)
+                        except Exception as ex:
+                            messagebox.showerror("Ouverture fichier", f"Impossible d'ouvrir le fichier: {ex}")
+                self.root.after(0, _ask_open)
+
             except Exception as e:
                 self.log_error(f"Erreur lors de la génération des SKU: {str(e)}")
             finally:
-                self.progress.stop()
+                self._progress_stop()
 
         thread = threading.Thread(target=process_thread)
         thread.daemon = True
@@ -428,15 +469,17 @@ class SKUGeneratorGUI:
         """Ancienne méthode de traitement BOM (pour référence)"""
         file_path = filedialog.askopenfilename(
             title="Sélectionner le fichier BOM à traiter",
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
+            initialdir=self._last_dir,
         )
 
         if not file_path:
             return
+        self._last_dir = os.path.dirname(file_path)
 
         def process_thread():
             try:
-                self.progress.start()
+                self._progress_start()
                 self.clear_results()
 
                 # En-tête principal
@@ -514,7 +557,7 @@ class SKUGeneratorGUI:
                 self.log_error(f"Erreur lors du traitement: {str(e)}")
                 self.log_info("💡 Vérifiez le format du fichier Excel")
             finally:
-                self.progress.stop()
+                self._progress_stop()
 
         thread = threading.Thread(target=process_thread)
         thread.daemon = True
@@ -530,7 +573,7 @@ class SKUGeneratorGUI:
 
         def search_thread():
             try:
-                self.progress.start()
+                self._progress_start()
                 self.clear_results()
 
                 # En-tête principal
@@ -562,7 +605,7 @@ class SKUGeneratorGUI:
                     if result.get('ref_fabricant'):
                         self.log_info(f"📋 Réf. fabricant : {result['ref_fabricant']}")
 
-                    self.log_info(f"� Date création  : {result['date_creation']}")
+                    self.log_info(f"📅 Date création  : {result['date_creation']}")
 
                     # Section décodage améliorée
                     self.log_section(f"STRUCTURE SKU ({result['sku']})")
@@ -570,18 +613,28 @@ class SKUGeneratorGUI:
                     # Décoder le SKU avec les nouvelles méthodes
                     decoded = self.generator.decode_sku_parts(result['sku'])
                     if decoded:
-                        self.log_info(f"🏭 Domaine   : {decoded['domaine_code']} → {decoded['domaine_nom']}")
-
-                        # Description du processus
-                        process_desc = self.generator.get_process_description(
-                            decoded['domaine_code'], decoded['route_code'], decoded['routing_code']
-                        )
-                        self.log_info(f"🛠️  Processus : {process_desc}")
-
-                        self.log_info(f"🛣️  Route     : {decoded['route_code']} → {decoded['route_nom']}")
-                        self.log_info(f"⚙️ Routing   : {decoded['routing_code']} → {decoded['routing_nom']}")
-                        self.log_info(f"🔧 Type      : {decoded['type_code']} → {decoded['type_nom']}")
-                        self.log_info(f"🔢 Index     : {decoded['sequence']}")
+                        fmt = decoded.get('format')
+                        if fmt == 'ancien':
+                            # Ancien format: DOMAINE-ROUTE-ROUTING-TYPE-SEQUENCE
+                            self.log_info(f"🏭 Domaine   : {decoded['domaine_code']} → {decoded['domaine_nom']}")
+                            process_desc = self.generator.get_process_description(
+                                decoded['domaine_code'], decoded['route_code'], decoded['routing_code']
+                            )
+                            self.log_info(f"🛠️  Processus : {process_desc}")
+                            self.log_info(f"🛣️  Route     : {decoded['route_code']} → {decoded['route_nom']}")
+                            self.log_info(f"⚙️ Routing   : {decoded['routing_code']} → {decoded['routing_nom']}")
+                            self.log_info(f"🔧 Type      : {decoded['type_code']} → {decoded['type_nom']}")
+                            self.log_info(f"🔢 Index     : {decoded['sequence']}")
+                        elif fmt == 'simplifie':
+                            # Nouveau format simplifié: FAMILLE-SOUS_FAMILLE-SEQUENCE
+                            self.log_info(f"🏭 Famille   : {decoded['famille_code']} → {decoded['famille_nom']}")
+                            self.log_info(f"🔧 Type      : {decoded['sous_famille_code']} → {decoded['sous_famille_nom']}")
+                            self.log_info(f"🔢 Index     : {decoded['sequence']}")
+                            # Description simple
+                            self.log_info(f"📝 Description : {decoded.get('description', '')}")
+                        else:
+                            # Format invalide
+                            self.log_error(decoded.get('erreur', 'Format SKU invalide'))
                     else:
                         # Fallback si le décodage échoue
                         sku_parts = result['sku'].split('-')
@@ -591,6 +644,10 @@ class SKUGeneratorGUI:
                             self.log_info(f"⚙️ Routing: {sku_parts[2]} ({result['routing']})")
                             self.log_info(f"🔧 Type: {sku_parts[3]} ({result['type']})")
                             self.log_info(f"📊 Séquence: {sku_parts[4]}")
+                        elif len(sku_parts) == 3:
+                            self.log_info(f"🏭 Famille: {sku_parts[0]}")
+                            self.log_info(f"🔧 Type   : {sku_parts[1]}")
+                            self.log_info(f"📊 Séquence: {sku_parts[2]}")
 
                     # Rechercher des composants similaires
                     self.log_section("COMPOSANTS SIMILAIRES")
@@ -612,7 +669,7 @@ class SKUGeneratorGUI:
                     self.log_info("💡 Vérifications possibles:")
                     self.log_info("   1. Vérifiez l'orthographe du SKU")
                     self.log_info("   2. Assurez-vous que le composant a été traité")
-                    self.log_info("   3. Le SKU doit être au format: DOMAINE-ROUTE-ROUTING-TYPE-SEQUENCE")
+                    self.log_info("   3. Formats acceptés: DOMAINE-ROUTE-ROUTING-TYPE-SEQUENCE ou FAMILLE-SOUS_FAMILLE-SEQUENCE")
 
                     # Proposer une recherche partielle
                     if '-' in sku:
@@ -629,7 +686,7 @@ class SKUGeneratorGUI:
                 self.log_error(f"Erreur lors de la recherche: {str(e)}")
                 self.log_info("💡 Vérifiez le format du SKU ou contactez l'administrateur")
             finally:
-                self.progress.stop()
+                self._progress_stop()
 
         thread = threading.Thread(target=search_thread)
         thread.daemon = True

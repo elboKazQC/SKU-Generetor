@@ -85,7 +85,7 @@ python test_sku_simplified.py
 ### Résultats Attendus
 ```
 ✅ Vis M6x20 INOX          → MECA-VISSER-AAAA
-✅ Résistance 10kΩ         → ELEC-RESIST-AAAB  
+✅ Résistance 10kΩ         → ELEC-RESIST-AAAB
 ✅ Pièce pliée support     → MECA-PLIAGE-AAAC
 ✅ Connecteur RJ45         → ELEC-CONNEC-AAAD
 ```
@@ -141,7 +141,7 @@ decoded = generator.decode_sku_parts(sku)
 {
     'format': 'simplifie',
     'famille_code': 'MECA',
-    'famille_nom': 'Mécanique', 
+    'famille_nom': 'Mécanique',
     'sous_famille_code': 'VISSER',
     'sous_famille_nom': 'Boulonnerie',
     'sequence': 'AAAA'
@@ -157,7 +157,7 @@ decoded = generator.decode_sku_parts(sku)
     'format': 'ancien',
     'domaine_code': 'MECA',
     'route_code': 'BOLT',
-    'routing_code': 'BOLT', 
+    'routing_code': 'BOLT',
     'type_code': 'VISSER',
     'sequence': 'AAAA'
 }
@@ -167,11 +167,11 @@ decoded = generator.decode_sku_parts(sku)
 
 Le nouveau format SKU simplifié **FAMILLE-SOUS_FAMILLE-SEQUENCE** offre :
 
-✅ **40% de réduction** de la longueur des SKU  
-✅ **Simplicité d'usage** pour les opérateurs  
-✅ **Logique industrielle** préservée  
-✅ **Rétrocompatibilité** totale  
-✅ **Performance améliorée** du système  
+✅ **40% de réduction** de la longueur des SKU
+✅ **Simplicité d'usage** pour les opérateurs
+✅ **Logique industrielle** préservée
+✅ **Rétrocompatibilité** totale
+✅ **Performance améliorée** du système
 
 Votre système est maintenant **plus efficace** et **plus facile à utiliser** !
 

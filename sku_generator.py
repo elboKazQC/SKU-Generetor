@@ -460,7 +460,7 @@ class SKUGenerator:
         # NOUVELLE LOGIQUE SIMPLIFIÉE : FAMILLE-SOUS_FAMILLE-SEQUENCE
         # FAMILLE = Domaine (ELEC/MECA)
         famille = component.domain
-        
+
         # SOUS_FAMILLE = Type de composant simplifié (sans redondance)
         sous_famille = self.normalize_text(component.component_type, 6)
 
@@ -618,7 +618,7 @@ class SKUGenerator:
     def decode_sku_parts(self, sku: str) -> Dict[str, str]:
         """Décoder les parties d'un SKU avec leurs significations - Support format simplifié et ancien"""
         parts = sku.split('-')
-        
+
         # Nouveau format simplifié : FAMILLE-SOUS_FAMILLE-SEQUENCE (3 parties)
         if len(parts) == 3:
             famille_code, sous_famille_code, sequence = parts
@@ -643,7 +643,7 @@ class SKUGenerator:
                 'sequence': sequence,
                 'description': f"Composant {famille_meaning.lower()} de type {sous_famille_meaning.get(sous_famille_code, sous_famille_code)}"
             }
-        
+
         # Ancien format : DOMAINE-ROUTE-ROUTING-TYPE-SEQUENCE (5 parties)
         elif len(parts) == 5:
             domain_code, route_code, routing_code, type_code, sequence = parts
@@ -681,7 +681,7 @@ class SKUGenerator:
                 'type_nom': type_meaning.get(type_code, type_code),
                 'sequence': sequence
             }
-        
+
         # Format non reconnu
         else:
             return {
