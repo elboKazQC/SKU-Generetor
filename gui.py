@@ -84,11 +84,18 @@ class SKUGeneratorGUI:
                    command=self.process_bom).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="🔄 Actualiser stats",
                    command=self.update_stats).pack(side=tk.LEFT, padx=(0, 5))
-        # Fix label characters for Windows fonts
         ttk.Button(button_frame, text="📤 Export ODOO",
                    command=self.export_odoo_template).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="🗑️ Effacer résultats",
                    command=self.clear_results).pack(side=tk.LEFT)
+
+        # Ligne boutons de démo
+        demo_frame = ttk.Frame(process_frame)
+        demo_frame.pack(fill=tk.X, padx=10, pady=(0,5))
+        ttk.Button(demo_frame, text="🎬 Démo Altium → Odoo",
+                   command=self.demo_altium_to_odoo).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(demo_frame, text="🎬 Démo SolidWorks → Odoo",
+                   command=self.demo_solidworks_to_odoo).pack(side=tk.LEFT)
 
         # Section recherche
         search_frame = ttk.LabelFrame(main_frame, text="Recherche par SKU")
@@ -717,6 +724,91 @@ class SKUGeneratorGUI:
 
         except Exception as e:
             self.log_error(f"Erreur lors de la création du template: {str(e)}")
+
+    # ---------------- DEMOS ----------------
+    def demo_altium_to_odoo(self):
+        """Flux de démonstration: Altium (Électrique) → SKU → Export Odoo"""
+        def run_demo():
+            try:
+                self._progress_start()
+                self.clear_results()
+                self.log_header("🎬 DÉMO ALTIUM → ODOO")
+                self.log_info("Génération de composants électriques exemple (Altium)...")
+
+                # Synthèse de 5 composants électriques typiques Altium
+                examples = [
+                    Component(name="R_100R_1%_0603", description="Résistance 100Ω 1% 0603", domain="ELEC", component_type="Résistances", route="", routing="", manufacturer="Vishay", manufacturer_part="CRCW0603100RFK"),
+                    Component(name="C_1uF_16V_0603", description="Condensateur 1uF 16V X5R 0603", domain="ELEC", component_type="Condensateurs", route="", routing="", manufacturer="Murata", manufacturer_part="GRM188R61C105KA12"),
+                    Component(name="U_MCU_STM32F0", description="Microcontrôleur STM32F0", domain="ELEC", component_type="Circuits intégrés", route="", routing="", manufacturer="ST", manufacturer_part="STM32F030K6T6"),
+                    Component(name="D_SMBJ5.0A", description="Diode TVS SMBJ5.0A", domain="ELEC", component_type="Diodes", route="", routing="", manufacturer="Littelfuse", manufacturer_part="SMBJ5.0A"),
+                    Component(name="CON_USB_MICRO", description="Connecteur USB Micro-B", domain="ELEC", component_type="Connecteurs", route="", routing="", manufacturer="Molex", manufacturer_part="47589-0001"),
+                ]
+
+                # Générer les SKU
+                results_df = self.processor._process_selected_electrical_components(examples)
+                results = {"Électrique": results_df}
+
+                # Export Excel et Odoo CSV
+                out_xlsx = "SKU_DEMO_ALTIUM.xlsx"
+                self.processor.export_results(results, out_xlsx)
+                count_csv, file_csv = self.odoo_integration.export_to_odoo_csv(results, "ODOO_DEMO_ALTIUM.csv")
+
+                self.log_section("RÉSULTATS DÉMO ALTIUM")
+                self.log_info(f"Électrique: {len(results_df)} composants")
+                for _, row in results_df.head(5).iterrows():
+                    self.log_sku_example(row['Name'], row['SKU'])
+                self.log_success(f"Export Excel: {out_xlsx}")
+                self.log_success(f"Export Odoo CSV: {file_csv} ({count_csv} lignes)")
+                self.update_stats()
+
+            except Exception as e:
+                self.log_error(f"Erreur démo Altium: {str(e)}")
+            finally:
+                self._progress_stop()
+
+        threading.Thread(target=run_demo, daemon=True).start()
+
+    def demo_solidworks_to_odoo(self):
+        """Flux de démonstration: SolidWorks (Mécanique) → SKU → Export Odoo"""
+        def run_demo():
+            try:
+                self._progress_start()
+                self.clear_results()
+                self.log_header("🎬 DÉMO SOLIDWORKS → ODOO")
+                self.log_info("Génération de composants mécaniques exemple (SolidWorks)...")
+
+                # Synthèse de 5 composants mécaniques typiques SolidWorks
+                examples = [
+                    Component(name="VIS_CHC_M6x20", description="Vis CHC M6x20", domain="MECA", component_type="Boulonnerie", route="", routing="", manufacturer="Unbrako", manufacturer_part="CHC_M6_20"),
+                    Component(name="ECROU_M6", description="Écrou M6", domain="MECA", component_type="Boulonnerie", route="", routing="", manufacturer="Unbrako", manufacturer_part="NUT_M6"),
+                    Component(name="PLAQUE_3mm_PLIAGE", description="Plaque acier pliée 3mm", domain="MECA", component_type="PIÈCES PLIÉES", route="", routing="", manufacturer="", manufacturer_part="PL-3-P"),
+                    Component(name="SUPPORT_USINAGE", description="Support usiné alu", domain="MECA", component_type="PIÈCES USINÉES", route="", routing="", manufacturer="", manufacturer_part="SUP-ALU-01"),
+                    Component(name="COUVERCLE_LASER", description="Couvercle découpé laser", domain="MECA", component_type="PIÈCES DÉCOUPÉES LASER", route="", routing="", manufacturer="", manufacturer_part="COV-LSR-01"),
+                ]
+
+                # Générer les SKU
+                results_df = self.processor._process_selected_mechanical_components(examples)
+                results = {"Mécanique": results_df}
+
+                # Export Excel et Odoo CSV
+                out_xlsx = "SKU_DEMO_SOLIDWORKS.xlsx"
+                self.processor.export_results(results, out_xlsx)
+                count_csv, file_csv = self.odoo_integration.export_to_odoo_csv(results, "ODOO_DEMO_SOLIDWORKS.csv")
+
+                self.log_section("RÉSULTATS DÉMO SOLIDWORKS")
+                self.log_info(f"Mécanique: {len(results_df)} composants")
+                for _, row in results_df.head(5).iterrows():
+                    self.log_sku_example(row['Name'], row['SKU'])
+                self.log_success(f"Export Excel: {out_xlsx}")
+                self.log_success(f"Export Odoo CSV: {file_csv} ({count_csv} lignes)")
+                self.update_stats()
+
+            except Exception as e:
+                self.log_error(f"Erreur démo SolidWorks: {str(e)}")
+            finally:
+                self._progress_stop()
+
+        threading.Thread(target=run_demo, daemon=True).start()
 
 def main():
     """Fonction principale"""

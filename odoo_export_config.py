@@ -55,25 +55,39 @@ class ODOOExportConfig:
         'DOC': 'Documentation'
     }
 
+def _normalize_domain(domain_value: str) -> str:
+    """Normaliser la valeur de domaine vers les clés attendues ELEC/MECA."""
+    if not isinstance(domain_value, str):
+        return 'DOC'
+    val = domain_value.strip().upper()
+    # Gérer variantes FR/EN
+    if val in ('ELEC', 'ELECTRIQUE', 'ÉLECTRIQUE', 'ELECTRICAL'):
+        return 'ELEC'
+    if val in ('MECA', 'MECANIQUE', 'MÉCANIQUE', 'MECHANICAL'):
+        return 'MECA'
+    return 'DOC'
+
 def prepare_odoo_export(df_results):
     """Préparer les données pour export ODOO"""
 
     odoo_data = []
 
     for _, row in df_results.iterrows():
+        domain_raw = row.get('Domain', '')
+        domain_norm = _normalize_domain(domain_raw)
         # Données de base
         product_data = {
             'default_code': row['SKU'],
             'name': row['Name'],
             'description': row['Description'] or row['Name'],
-            'categ_id': ODOOExportConfig.DOMAIN_CATEGORIES.get(row['Domain'], 'Autres'),
+            'categ_id': ODOOExportConfig.DOMAIN_CATEGORIES.get(domain_norm, 'Autres'),
 
             # Fabricant
             'manufacturer_name': row.get('Manufacturer', ''),
             'manufacturer_pname': row.get('Manufacturer_PN', ''),
 
             # Données techniques
-            'x_domain': row['Domain'],
+            'x_domain': domain_norm,
             'x_component_type': row.get('ComponentType', ''),
             'x_designator': row.get('Designator', ''),
             'x_quantity_bom': row.get('Quantity', 1),
